@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CONFIDENCE_COLOR, type ConfidenceFlag } from "@gai/shared";
 
 type HealthState =
@@ -75,6 +76,23 @@ export default function Home() {
       >
         The strokes-gained engine, in your pocket.
       </p>
+
+      {/* Primary entry point into the yardage book */}
+      <Link
+        href="/courses"
+        style={{
+          background: "var(--green)",
+          color: "var(--bg)",
+          border: "none",
+          borderRadius: 10,
+          padding: "13px 22px",
+          fontSize: 15,
+          fontWeight: 600,
+          textDecoration: "none",
+        }}
+      >
+        Open the yardage book →
+      </Link>
 
       {/* Phase 0 round-trip: client → Vercel function → Postgres → back */}
       <div
