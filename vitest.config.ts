@@ -13,6 +13,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // Mirror apps/web/.env.local into process.env before any test module loads,
+    // so the live-DB tests (round-trip, migrations) can find DATABASE_URL.
+    setupFiles: ["tests/setup.env.ts"],
     hookTimeout: 20000,
     testTimeout: 20000,
   },

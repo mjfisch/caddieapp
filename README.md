@@ -24,8 +24,8 @@ gai-caddie/
 ```bash
 npm install
 
-# Point at a Postgres. Local example (any Postgres works):
-cp .env.example .env.local
+# Point at a Postgres. The env file lives in apps/web (Next.js loads it):
+cp apps/web/.env.example apps/web/.env.local
 # then set DATABASE_URL, e.g.:
 #   DATABASE_URL=postgresql://USER@127.0.0.1:5432/gai_caddie
 # ANTHROPIC_API_KEY is not needed for the Phase 0 round-trip.
