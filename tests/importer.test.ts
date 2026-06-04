@@ -35,6 +35,29 @@ describe("parseTrackmanCsv: header mapping + numeric coercion", () => {
     expect(rows[1].club).toBe("PW"); // "Pitching Wedge" normalized
     expect(rows[1].carry_side_yards).toBe(-3.1); // "L" -> negative
   });
+
+  it("maps the MJF shot-log schema (underscore headers) and honors include=Y", () => {
+    const csv = [
+      "session_id,date,facility,surface,ball,club,loft,shot_no,carry_yds,total_yds,ball_speed,launch_deg,launch_dir,side_yds,source,include,notes",
+      "SKO-2026-01,5/18/2026,Skokie,mat,range,3h,19,1,191,206,129,12.3,-0.1,9,Trackman,Y,",
+      "SKO-2026-01,5/18/2026,Skokie,mat,range,4i,20,1,170,206,124,8,0.3,1.3,Trackman,Y,",
+      "SKO-2026-01,5/18/2026,Skokie,mat,range,7i,34,1,160,170,118,17,0.0,2,Trackman,N,fat", // include=N -> skipped
+    ].join("\n");
+
+    const rows = parseTrackmanCsv(csv);
+    expect(rows).toHaveLength(2); // the include=N row is dropped
+    expect(rows.map((r) => r.club)).toEqual(["3h", "4i"]);
+    expect(rows[0]).toMatchObject({
+      club: "3h",
+      carry_yards: 191,
+      total_yards: 206,
+      ball_speed_mph: 129,
+      launch_angle_deg: 12.3, // launch_deg
+      launch_dir_deg: -0.1,
+      carry_side_yards: 9, // side_yds, already in yards
+      session_date: "5/18/2026",
+    });
+  });
 });
 
 // Phase 2A: 15 synthetic 7-iron shots -> recompute -> club_dispersion flips to

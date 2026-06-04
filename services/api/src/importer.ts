@@ -58,17 +58,28 @@ const HEADER_ALIASES: Record<string, keyof ShotRow> = {
   club: "club",
   carry: "carry_yards",
   carryyards: "carry_yards",
+  carryyds: "carry_yards",
   total: "total_yards",
   totalyards: "total_yards",
+  totalyds: "total_yards",
   ballspeed: "ball_speed_mph",
+  ballspeedmph: "ball_speed_mph",
   launchangle: "launch_angle_deg",
+  launchangledeg: "launch_angle_deg",
+  launchdeg: "launch_angle_deg",
   launchdirection: "launch_dir_deg",
   launchdir: "launch_dir_deg",
   carryside: "carry_side_yards",
   side: "carry_side_yards",
+  sideyds: "carry_side_yards",
+  sideyards: "carry_side_yards",
   date: "session_date",
   sessiondate: "session_date",
 };
+
+/** Header tokens whose truthy value (Y/yes/true/1) gates whether a row imports. */
+const INCLUDE_HEADERS = new Set(["include", "use", "included"]);
+const INCLUDE_TRUE = new Set(["y", "yes", "true", "1", "t"]);
 
 /** Strip units/punctuation: "Carry Side (yds)" -> "carryside". */
 function normalizeHeader(h: string): string {
@@ -132,10 +143,18 @@ export function parseTrackmanCsv(text: string): ShotRow[] {
 
   const headers = splitCsvLine(lines[0]!).map(normalizeHeader);
   const fieldFor = headers.map((h) => HEADER_ALIASES[h]);
+  // Optional include/use flag column: when present, only Y/yes/true/1 rows import.
+  const includeIdx = headers.findIndex((h) => INCLUDE_HEADERS.has(h));
 
   const rows: ShotRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cells = splitCsvLine(lines[i]!);
+
+    if (includeIdx >= 0) {
+      const flag = (cells[includeIdx] ?? "").trim().toLowerCase();
+      if (!INCLUDE_TRUE.has(flag)) continue; // explicitly not-included -> skip
+    }
+
     const rec: Partial<Record<keyof ShotRow, string>> = {};
     fieldFor.forEach((field, idx) => {
       if (field) rec[field] = cells[idx];
