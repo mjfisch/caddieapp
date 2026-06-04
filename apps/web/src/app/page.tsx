@@ -21,6 +21,7 @@ function DispersionMark({ size = 40 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="GAI Caddie">
       <g transform="rotate(-22 32 32)">
         <ellipse cx="32" cy="32" rx="20" ry="11.5" fill="none" stroke="var(--green)" strokeWidth="3.2" />
+        <ellipse cx="32" cy="32" rx="11.5" ry="6.6" fill="none" stroke="var(--green)" strokeWidth="3.2" />
       </g>
       <circle cx="32" cy="32" r="3.2" fill="var(--green)" />
       <circle cx="42" cy="27.6" r="2.4" fill="var(--green)" />
