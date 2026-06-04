@@ -2,7 +2,7 @@ import "server-only";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Pool } from "pg";
-import type { ConfidenceFlag } from "@gai/shared";
+import { normalizeClub, type ConfidenceFlag } from "@gai/shared";
 import { getPool } from "./db";
 
 // =============================================================
@@ -146,7 +146,7 @@ export function parseTrackmanCsv(text: string): ShotRow[] {
     if (!club || carry == null) continue; // club + carry are the minimum viable row
 
     rows.push({
-      club,
+      club: normalizeClub(club), // canonical key so shots merge with the seed (invariant #2)
       carry_yards: carry,
       total_yards: parseNumeric(rec.total_yards),
       ball_speed_mph: parseNumeric(rec.ball_speed_mph),

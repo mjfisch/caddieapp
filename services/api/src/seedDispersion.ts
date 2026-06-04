@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import type { Pool } from "pg";
-import type { ConfidenceFlag } from "@gai/shared";
+import { normalizeClub, type ConfidenceFlag } from "@gai/shared";
 import { getPool } from "./db";
 
 // =============================================================
@@ -100,7 +100,7 @@ export function parseHandicapSeed(md: string): SeedRow[] {
     if (!Number.isFinite(carry)) continue;
 
     rows.push({
-      club,
+      club: normalizeClub(club), // canonical key so measured imports later collide on this row
       carry_mean_yards: round1(carry),
       carry_sd_yards: round1(carry * distancePct),
       lateral_sd_yards: round1(carry * lateralPct),

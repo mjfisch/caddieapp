@@ -24,7 +24,7 @@ describe("parseTrackmanCsv: header mapping + numeric coercion", () => {
     expect(rows).toHaveLength(2);
 
     expect(rows[0]).toMatchObject({
-      club: "7 Iron",
+      club: "7i", // "7 Iron" normalized to the canonical id
       carry_yards: 165.4,
       total_yards: 173,
       ball_speed_mph: 114.8,
@@ -32,6 +32,7 @@ describe("parseTrackmanCsv: header mapping + numeric coercion", () => {
       carry_side_yards: 4.2, // "R" -> positive
       session_date: "2026-06-04",
     });
+    expect(rows[1].club).toBe("PW"); // "Pitching Wedge" normalized
     expect(rows[1].carry_side_yards).toBe(-3.1); // "L" -> negative
   });
 });
@@ -64,10 +65,14 @@ describe.skipIf(!hasDb)("importer: recompute flips club_dispersion to measured",
   beforeAll(async () => {
     await runMigrations();
     await getPool().query("DELETE FROM shot WHERE source = $1", [TEST_SOURCE]);
+    // Clear any prior test-created dispersion row (TEST_CLUB is non-canonical and
+    // never seeded, so deleting it also clears the historical stale '7-iron' row).
+    await getPool().query("DELETE FROM club_dispersion WHERE club = $1", [TEST_CLUB]);
   });
 
   afterAll(async () => {
     await getPool().query("DELETE FROM shot WHERE source = $1", [TEST_SOURCE]);
+    await getPool().query("DELETE FROM club_dispersion WHERE club = $1", [TEST_CLUB]);
   });
 
   it(`flips ${TEST_CLUB} to measured after ${MEASURED_MIN_SHOTS}+ shots, with a sane carry SD`, async () => {
