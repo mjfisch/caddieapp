@@ -1,0 +1,14 @@
+{
+  "name": "GAI Caddie",
+  "short_name": "GAI Caddie",
+  "description": "AI-authored golf yardage book.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070d18",
+  "theme_color": "#070d18",
+  "icons": [
+    { "src": "/gai-caddie-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/favicon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/favicon-32.png", "sizes": "32x32", "type": "image/png" }
+  ]
+}

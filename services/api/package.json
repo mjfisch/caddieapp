@@ -1,0 +1,17 @@
+{
+  "name": "@gai/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@gai/sg-engine": "*",
+    "@gai/shared": "*",
+    "pg": "^8.13.1",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10"
+  }
+}

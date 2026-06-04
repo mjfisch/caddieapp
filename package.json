@@ -1,0 +1,28 @@
+{
+  "name": "gai-caddie",
+  "version": "0.0.0",
+  "private": true,
+  "description": "GAI Caddie — AI-authored web golf yardage book. Phase 0 skeleton & rails.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web",
+    "build": "npm run build --workspace apps/web",
+    "start": "npm run start --workspace apps/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:roundtrip": "vitest run tests/round-trip.test.ts",
+    "test:invariants": "vitest run tests/invariants.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,50 @@
+/* GAI Caddie product UI — the as-built tokens (Brief §10, D16-canonical).
+   Dark, data-forward, "Bloomberg terminal for golf." Distinct from the BTP
+   marketing brand, which never appears as app chrome. Semantic accents map
+   onto the confidence model (invariant #2): green=measured, amber=partial,
+   red=danger, faint grey=seeded. */
+
+:root {
+  --body: #04070e;
+  --bg: #070d18;
+  --bg2: #0a1322;
+  --panel: #0e1828;
+  --raise: #16243c;
+  --line: rgba(255, 255, 255, 0.07);
+  --line2: rgba(255, 255, 255, 0.12);
+
+  --text: #e9eff8;
+  --muted: #8093ad;
+  --faint: #5d6e88; /* = seeded */
+
+  --green: #5fd991; /* safe / recommended / measured */
+  --amber: #f1b24c; /* caution / partial */
+  --red: #f0726f;   /* high-risk / danger side */
+
+  /* Font families wired via next/font in layout.tsx (CSS variables set there):
+     --font-sans (Hanken Grotesk), --font-mono (JetBrains Mono), --font-serif (Instrument Serif). */
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(95, 217, 145, 0.05), transparent 60%),
+    var(--bg);
+}
+
+code, .mono { font-family: var(--font-mono), ui-monospace, monospace; }
+.serif { font-family: var(--font-serif), Georgia, serif; }
+
+a { color: var(--green); text-decoration: none; }
+a:hover { text-decoration: underline; }
