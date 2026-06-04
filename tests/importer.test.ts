@@ -58,6 +58,18 @@ describe("parseTrackmanCsv: header mapping + numeric coercion", () => {
       session_date: "5/18/2026",
     });
   });
+
+  it("converts a side_ft column from feet to yards (÷3)", () => {
+    const csv = [
+      "club,carry_yds,side_ft,include",
+      "9i,138,-84,Y", // -84 ft -> -28 yds
+      "3h,191,27,Y", //  27 ft ->   9 yds
+    ].join("\n");
+
+    const rows = parseTrackmanCsv(csv);
+    expect(rows[0]!.carry_side_yards).toBe(-28);
+    expect(rows[1]!.carry_side_yards).toBe(9);
+  });
 });
 
 // Phase 2A: 15 synthetic 7-iron shots -> recompute -> club_dispersion flips to

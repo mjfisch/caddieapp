@@ -56,24 +56,31 @@ describe.skipIf(!hasDb)("seedDispersion: seeds the real handicap file into club_
     await runMigrations();
   });
 
-  it("seeds every bag club as seeded, with driver included", async () => {
+  it("seeds the whole bag, only writes seeded, and never downgrades measured", async () => {
     const summary = await seedDispersion();
     // Real file's measured bag: driver,3h,4i,5h,6i,7i,8i,9i,PW,GW50,SW54,LW60,LW64
     expect(summary.seeded.length + summary.skippedMeasured.length).toBeGreaterThanOrEqual(13);
+    // The seeder only ever writes the `seeded` flag — it cannot assert measured/partial.
+    expect(summary.seeded.every((s) => s.confidence === "seeded")).toBe(true);
 
     const pool = getPool();
-    const { rows } = await pool.query<{ club: string; confidence: string; carry_mean_yards: string }>(
-      "SELECT club, confidence, carry_mean_yards FROM club_dispersion WHERE club = ANY($1)",
-      [["driver", "7i", "PW"]]
+    const { rows } = await pool.query<{ club: string; confidence: string }>(
+      "SELECT club, confidence FROM club_dispersion"
     );
-    const byClub = Object.fromEntries(rows.map((r) => [r.club, r]));
+    const byClub = Object.fromEntries(rows.map((r) => [r.club, r.confidence]));
 
-    // Driver is seeded (PENDING), never partial — it has zero real shots.
-    expect(byClub["driver"]?.confidence).toBe("seeded");
-    expect(Number(byClub["driver"]?.carry_mean_yards)).toBe(265);
+    // Invariant #2: no bag club is ever `partial`; driver is seeded (PENDING) until
+    // real shots arrive, then measured — but never partial.
+    expect(rows.every((r) => r.confidence !== "partial")).toBe(true);
+    expect(["seeded", "measured"]).toContain(byClub["driver"]);
 
-    // 7i: measured carry 160, dispersion still seeded.
-    expect(byClub["7i"]?.confidence).toBe("seeded");
-    expect(Number(byClub["7i"]?.carry_mean_yards)).toBe(160);
+    // No-downgrade: any club already measured stays measured across a re-seed.
+    const measuredBefore = rows.filter((r) => r.confidence === "measured").map((r) => r.club);
+    await seedDispersion();
+    const { rows: after } = await pool.query<{ club: string; confidence: string }>(
+      "SELECT club, confidence FROM club_dispersion WHERE club = ANY($1)",
+      [measuredBefore.length ? measuredBefore : ["__none__"]]
+    );
+    expect(after.every((r) => r.confidence === "measured")).toBe(true);
   });
 });

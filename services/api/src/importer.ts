@@ -73,9 +73,17 @@ const HEADER_ALIASES: Record<string, keyof ShotRow> = {
   side: "carry_side_yards",
   sideyds: "carry_side_yards",
   sideyards: "carry_side_yards",
+  sideft: "carry_side_yards",
+  sidefeet: "carry_side_yards",
   date: "session_date",
   sessiondate: "session_date",
 };
+
+/** Side-column headers carrying values in FEET — converted to yards (÷3) on import.
+ *  The schema stores carry_side in yards; a column literally labeled feet must be
+ *  converted or lateral dispersion comes out ~3× too wide. */
+const SIDE_FEET_HEADERS = new Set(["sideft", "sidefeet"]);
+const FEET_PER_YARD = 3;
 
 /** Header tokens whose truthy value (Y/yes/true/1) gates whether a row imports. */
 const INCLUDE_HEADERS = new Set(["include", "use", "included"]);
@@ -145,6 +153,9 @@ export function parseTrackmanCsv(text: string): ShotRow[] {
   const fieldFor = headers.map((h) => HEADER_ALIASES[h]);
   // Optional include/use flag column: when present, only Y/yes/true/1 rows import.
   const includeIdx = headers.findIndex((h) => INCLUDE_HEADERS.has(h));
+  // Is the side column in feet? If so, convert to yards when building each row.
+  const sideIdx = fieldFor.findIndex((f) => f === "carry_side_yards");
+  const sideInFeet = sideIdx >= 0 && SIDE_FEET_HEADERS.has(headers[sideIdx]!);
 
   const rows: ShotRow[] = [];
   for (let i = 1; i < lines.length; i++) {
@@ -164,6 +175,9 @@ export function parseTrackmanCsv(text: string): ShotRow[] {
     const carry = parseNumeric(rec.carry_yards);
     if (!club || carry == null) continue; // club + carry are the minimum viable row
 
+    let side = parseNumeric(rec.carry_side_yards);
+    if (side != null && sideInFeet) side = Math.round((side / FEET_PER_YARD) * 100) / 100;
+
     rows.push({
       club: normalizeClub(club), // canonical key so shots merge with the seed (invariant #2)
       carry_yards: carry,
@@ -171,7 +185,7 @@ export function parseTrackmanCsv(text: string): ShotRow[] {
       ball_speed_mph: parseNumeric(rec.ball_speed_mph),
       launch_angle_deg: parseNumeric(rec.launch_angle_deg),
       launch_dir_deg: parseNumeric(rec.launch_dir_deg),
-      carry_side_yards: parseNumeric(rec.carry_side_yards),
+      carry_side_yards: side,
       session_date: rec.session_date?.trim() || null,
     });
   }
