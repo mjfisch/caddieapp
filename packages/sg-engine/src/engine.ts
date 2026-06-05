@@ -7,6 +7,7 @@ import type {
   StrategyResult,
 } from './types'
 import { normalQuantile } from './stats'
+import { computeExpectedStrokes } from './expectedStrokes'
 
 // =============================================================
 // predictHole — the deterministic strategy call (invariant #1).
@@ -100,6 +101,7 @@ export function predictHole(
 
   // ── 3. Layup logic ──────────────────────────────────────────────────────────
   let recommendedClub = chosen.d.club
+  let recommendedDispersion = chosen.d
   let carryTarget = round(chosen.d.carryMean)
   let layupRecommended = false
 
@@ -120,6 +122,7 @@ export function predictHole(
           scored.reduce((best, s) => (s.d.carryMean < best.d.carryMean ? s : best))
       layupRecommended = true
       recommendedClub = layup.d.club
+      recommendedDispersion = layup.d
       carryTarget = round(layup.d.carryMean)
       considered.push(layup.d.confidence)
       reasoning.push(
@@ -153,11 +156,11 @@ export function predictHole(
     reasoning.push(`${dangerSide} is ${kind ?? 'trouble'} — favor away.`)
   }
 
-  // ── 5. Expected strokes (placeholder; full Broadie model in Phase 3) ─────────
-  let expectedStrokes = hole.par
-  if (hole.strokeIndex > 9) expectedStrokes += 0.1 * (hole.strokeIndex - 9)
-  else if (hole.strokeIndex < 9) expectedStrokes -= 0.05 * (9 - hole.strokeIndex)
-  expectedStrokes = Math.round(expectedStrokes * 100) / 100
+  // ── 5. Expected strokes (Phase 3C — Broadie dispersion × SG baseline) ────────
+  // Sample the recommended club's ellipse at the recommended carry target,
+  // classify each landing lie, price it against the SG baseline, and average.
+  // Deterministic (seeded sampler), zero I/O — invariant #1.
+  const expectedStrokes = computeExpectedStrokes(hole, recommendedDispersion, carryTarget)
 
   // ── 6. Confidence flag — invariant #2: lowest among the clubs we leaned on ───
   const confidenceFlag = lowestConfidence(considered)

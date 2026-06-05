@@ -7,6 +7,9 @@ import {
   deterministicProbe,
   predictHole,
   PERSONAS,
+  computeExpectedStrokes,
+  sampleDispersion,
+  expectedStrokesFromLie,
   type ClubDispersion,
   type HoleInput,
   type PersonaRiskConfig,
@@ -207,6 +210,86 @@ describe("invariant #1 (Phase 2B) — predictHole is the deterministic strategy 
     expect(r.carryTarget).toBeLessThanOrEqual(165);
     expect(r.dangerSide).not.toBeNull();
     expect(r.confidenceFlag).toBe("measured");
+  });
+});
+
+// ── Phase 3C — Broadie expected-strokes model (sg-engine) ───────────────────────
+describe("invariant #1 (Phase 3C) — the Broadie expected-strokes model is deterministic math", () => {
+  const OPEN_HOLE: HoleInput = {
+    number: 1,
+    par: 4,
+    strokeIndex: 10,
+    yardageWhite: 150,
+    features: [],
+  };
+  const EIGHT_IRON = MJF_BAG.find((c) => c.club === "8i")!;
+
+  const FOX_BEND_HOLE_3: HoleInput = {
+    number: 3,
+    par: 3,
+    strokeIndex: 16,
+    yardageWhite: 150,
+    features: [
+      { kind: "water", side: "left", distanceFromTee: null, carryToClear: 160 },
+      { kind: "water", side: "right", distanceFromTee: null, carryToClear: 160 },
+    ],
+  };
+
+  it("1. determinism: computeExpectedStrokes on identical inputs returns the identical value", () => {
+    const a = computeExpectedStrokes(OPEN_HOLE, EIGHT_IRON, 150);
+    const b = computeExpectedStrokes(OPEN_HOLE, EIGHT_IRON, 150);
+    expect(a).toBe(b);
+    expect(Number.isFinite(a)).toBe(true);
+  });
+
+  it("2. baseline ordering: fairway < rough < bunker < penalty at the same distance", () => {
+    // The SG baseline must price the lies monotonically — Layer 1 accuracy.
+    for (const d of [100, 150, 175]) {
+      const fairway = expectedStrokesFromLie(d, "fairway");
+      const rough = expectedStrokesFromLie(d, "rough");
+      const bunker = expectedStrokesFromLie(d, "bunker");
+      const penalty = expectedStrokesFromLie(d, "penalty");
+      expect(fairway).toBeLessThan(rough);
+      expect(rough).toBeLessThan(bunker);
+      expect(bunker).toBeLessThan(penalty);
+    }
+  });
+
+  it("3. sampler determinism: sampleDispersion returns identical arrays for identical inputs", () => {
+    const a = sampleDispersion(150, 10, 7, 500);
+    const b = sampleDispersion(150, 10, 7, 500);
+    expect(a).toHaveLength(500);
+    expect(a).toEqual(b);
+  });
+
+  it("4. Fox Bend Hole 3 regression: 8i / carry 150, with a real (non-placeholder) expectedStrokes", () => {
+    const r = predictHole(FOX_BEND_HOLE_3, MJF_BAG, PERSONAS.rain_man!);
+    expect(r.recommendedClub).toBe("8i");
+    expect(r.carryTarget).toBe(150);
+    // A real sampled value, in a plausible par-3 range — and NOT the old placeholder
+    // formula result (par + 0.1*(strokeIndex-9) = 3 + 0.7 = 3.7).
+    expect(r.expectedStrokes).toBeGreaterThanOrEqual(2.8);
+    expect(r.expectedStrokes).toBeLessThanOrEqual(4.5);
+    expect(r.expectedStrokes).not.toBe(3.7);
+  });
+
+  it("5. no I/O boundary: every sg-engine source file (incl. the new Phase 3C modules) is I/O-free", () => {
+    const srcDir = fileURLToPath(new URL("../packages/sg-engine/src/", import.meta.url));
+    const files = readdirSync(srcDir).filter((f) => f.endsWith(".ts"));
+    // The four new modules must be present alongside the existing surface.
+    for (const f of ["sgBaseline.ts", "sampler.ts", "classifier.ts", "expectedStrokes.ts"]) {
+      expect(files.includes(f), `expected packages/sg-engine/src/${f}`).toBe(true);
+    }
+    const forbidden = [
+      'from "pg"', 'from "fs"', "node:fs", "node:net", "node:http", "node:https",
+      "fetch(", "http", "Math.random", "Date.now", "new Date(", "@anthropic", "server-only",
+    ];
+    for (const f of files) {
+      const src = stripComments(readFileSync(srcDir + f, "utf8"));
+      for (const bad of forbidden) {
+        expect(src.includes(bad), `packages/sg-engine/src/${f} must not contain: ${bad}`).toBe(false);
+      }
+    }
   });
 });
 

@@ -21,6 +21,15 @@ export function deterministicProbe(seed: number): number {
 export { predictHole } from "./engine";
 export { PERSONAS } from "./personas";
 export { normalQuantile, probExceed } from "./stats";
+
+// Phase 3C surface — the Broadie expected-strokes model.
+export { expectedStrokesFromLie } from "./sgBaseline";
+export { sampleDispersion } from "./sampler";
+export { classifyLandingZone } from "./classifier";
+export { computeExpectedStrokes } from "./expectedStrokes";
+export type { Lie } from "./sgBaseline";
+export type { DispersionSample } from "./sampler";
+export type { LandingLie } from "./classifier";
 export type {
   ConfidenceFlag,
   ClubDispersion,
