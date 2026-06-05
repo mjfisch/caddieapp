@@ -1,14 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { CONFIDENCE_COLOR, type ConfidenceFlag } from "@gai/shared";
-
-type HealthState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "ok"; message: string; dbTime: string; sgEngineVersion: string }
-  | { status: "error"; error: string };
 
 const FLAGS: { flag: ConfidenceFlag; label: string }[] = [
   { flag: "measured", label: "measured" },
@@ -31,28 +24,6 @@ function DispersionMark({ size = 40 }: { size?: number }) {
 }
 
 export default function Home() {
-  const [health, setHealth] = useState<HealthState>({ status: "idle" });
-
-  async function ping() {
-    setHealth({ status: "loading" });
-    try {
-      const res = await fetch("/api/health");
-      const data = await res.json();
-      if (data.ok) {
-        setHealth({
-          status: "ok",
-          message: data.message,
-          dbTime: data.dbTime,
-          sgEngineVersion: data.sgEngineVersion,
-        });
-      } else {
-        setHealth({ status: "error", error: data.error ?? "unknown error" });
-      }
-    } catch (err) {
-      setHealth({ status: "error", error: err instanceof Error ? err.message : "request failed" });
-    }
-  }
-
   return (
     <main
       style={{
@@ -93,70 +64,6 @@ export default function Home() {
       >
         Open the yardage book →
       </Link>
-
-      {/* Phase 0 round-trip: client → Vercel function → Postgres → back */}
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 420,
-          background: "var(--panel)",
-          border: "1px solid var(--line)",
-          borderRadius: 14,
-          padding: 22,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
-      >
-        <div
-          className="mono"
-          style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--faint)" }}
-        >
-          Phase 0 · skeleton &amp; rails
-        </div>
-
-        <button
-          onClick={ping}
-          disabled={health.status === "loading"}
-          style={{
-            appearance: "none",
-            cursor: health.status === "loading" ? "default" : "pointer",
-            background: "var(--raise)",
-            color: "var(--text)",
-            border: "1px solid var(--line2)",
-            borderRadius: 10,
-            padding: "12px 16px",
-            fontSize: 15,
-            fontFamily: "inherit",
-            transition: "border-color 120ms ease",
-          }}
-        >
-          {health.status === "loading" ? "Pinging backend…" : "Ping the backend"}
-        </button>
-
-        <div className="mono" style={{ fontSize: 13, lineHeight: 1.7, minHeight: 72 }}>
-          {health.status === "idle" && (
-            <span style={{ color: "var(--faint)" }}>
-              Click to round-trip a write+read through Postgres.
-            </span>
-          )}
-          {health.status === "loading" && <span style={{ color: "var(--muted)" }}>…</span>}
-          {health.status === "ok" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ color: "var(--green)" }}>● round-trip ok</span>
-              <span style={{ color: "var(--muted)" }}>message: {health.message}</span>
-              <span style={{ color: "var(--muted)" }}>db_time: {health.dbTime}</span>
-              <span style={{ color: "var(--muted)" }}>sg-engine: v{health.sgEngineVersion}</span>
-            </div>
-          )}
-          {health.status === "error" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ color: "var(--red)" }}>● round-trip failed</span>
-              <span style={{ color: "var(--muted)" }}>{health.error}</span>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Confidence legend — invariant #2 made visible from day one */}
       <div style={{ display: "flex", gap: 18 }}>
