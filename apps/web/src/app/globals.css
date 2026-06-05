@@ -245,6 +245,53 @@ a:hover { text-decoration: underline; }
   border-color: var(--green);
 }
 
+/* Putts — optional, smaller chips below the score row. */
+.mb-putts-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.mb-putts {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.mb-putt-chip {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.mb-putt-chip.selected {
+  color: var(--bg);
+  background: var(--muted);
+  border-color: var(--muted);
+}
+
+/* Finish round — appears only when all holes are scored. */
+.mb-finish-btn {
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--green);
+  border: 1px solid var(--green);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
 /* Hole navigation — large prev/next tap targets. */
 .mb-nav {
   display: flex;
@@ -388,6 +435,19 @@ a:hover { text-decoration: underline; }
   color: var(--muted);
 }
 .mb-index-empty { color: var(--faint); }
+
+/* Past rounds — Phase 5, listed below the hole list on the play index. */
+.mb-past { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.mb-past-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.mb-past-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mb-past-row {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; text-decoration: none; color: var(--text);
+}
+.mb-past-date { font-size: 13px; color: var(--text); }
+.mb-past-strokes { font-size: 13px; color: var(--muted); }
+.mb-past-vspar { font-size: 14px; font-weight: 700; }
 .mb-start-btn {
   min-height: 48px;
   display: inline-flex;
@@ -452,6 +512,87 @@ a:hover { text-decoration: underline; }
   color: var(--muted);
 }
 .mb-score-empty { color: var(--faint); }
+
+/* Post-round Recap — Phase 5. Server-rendered scorecard + stats + weakness signals
+   + an optional caddie recap. Same dark product tokens; classes prefixed `rc-`. */
+.rc-page {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.rc-green { color: var(--green); }
+.rc-amber { color: var(--amber); }
+.rc-red { color: var(--red); }
+.rc-text { color: var(--text); }
+.rc-faint { color: var(--faint); }
+
+.rc-head { display: flex; flex-direction: column; gap: 6px; }
+.rc-back { font-size: 12px; color: var(--muted); }
+.rc-head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.rc-title { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.rc-vspar { font-size: 30px; font-weight: 700; }
+.rc-sub { font-size: 12.5px; color: var(--muted); }
+
+/* Scorecard table */
+.rc-card { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel); }
+.rc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rc-table th, .rc-table td { padding: 7px 6px; text-align: center; }
+.rc-table thead th {
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--faint); font-weight: 600; border-bottom: 1px solid var(--line);
+}
+.rc-table .rc-th-l { text-align: left; padding-left: 12px; }
+.rc-table tbody tr { border-bottom: 1px solid var(--line); }
+.rc-score { font-weight: 700; }
+.rc-sc-birdie { color: var(--green); }
+.rc-sc-par { color: var(--text); }
+.rc-sc-bogey { color: var(--amber); }
+.rc-sc-double { color: var(--red); }
+.rc-subtotal td { color: var(--muted); font-weight: 600; border-top: 1px solid var(--line); }
+.rc-total td { color: var(--text); font-weight: 700; border-top: 2px solid var(--line2); padding-top: 9px; padding-bottom: 9px; }
+
+/* Stat tiles — 2x2 */
+.rc-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rc-tile { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+.rc-tile-label { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+.rc-tile-val { font-size: 26px; font-weight: 700; }
+.rc-tile-bench { font-size: 11px; color: var(--muted); }
+
+/* Weakness signal cards */
+.rc-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.rc-weak { display: flex; flex-direction: column; gap: 10px; }
+.rc-weak-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+.rc-weak-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.rc-weak-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.rc-weak-fig { font-size: 14px; }
+.rc-weak-fig b { font-size: 17px; }
+.rc-weak-desc { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
+.rc-weak-cta { align-self: flex-start; font-size: 13px; color: var(--green); text-decoration: none; padding-top: 2px; }
+
+/* Caddie recap (optional) */
+.rc-coach { display: flex; flex-direction: column; gap: 8px; }
+.rc-coach-btn {
+  min-height: 48px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 600; color: var(--text);
+  background: var(--panel); border: 1px solid var(--line2); border-radius: 12px; cursor: pointer;
+}
+.rc-coach-body { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.rc-coach-text { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text); }
+.rc-coach-again { margin-top: 8px; background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; }
+.rc-coach-err { font-size: 13px; color: var(--red); margin: 0; }
+
+/* Navigation */
+.rc-nav { display: flex; flex-direction: column; gap: 10px; }
+.rc-nav-btn {
+  min-height: 50px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 600; color: var(--bg); background: var(--green);
+  border: 1px solid var(--green); border-radius: 12px; text-decoration: none;
+}
+.rc-nav-ghost { color: var(--text); background: var(--panel); border-color: var(--line2); }
+.rc-footer { font-size: 12px; color: var(--faint); margin-top: 8px; }
 
 /* Practice tab — Phase 4.5 (D12–D15).
    The input side of the loop: log sessions, set feel-trust, get a persona-voiced
@@ -635,6 +776,8 @@ a:hover { text-decoration: underline; }
   background: #0a121f; color: var(--muted);
 }
 .pr-chip.on { background: rgba(95, 217, 145, 0.16); border-color: var(--green-dim, #2f7f57); color: var(--green); }
+/* Pre-selected from a Recap "Take to Practice →" link — an amber ring draws the eye. */
+.pr-chip.focus-from-recap { box-shadow: 0 0 0 2px var(--amber); border-color: var(--amber); }
 .pr-stars { display: flex; gap: 6px; }
 .pr-star {
   min-width: 40px; min-height: 40px; cursor: pointer; font-size: 22px; line-height: 1;

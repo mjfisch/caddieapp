@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // Mode B on-course hole view (Phase 4). Glance-and-go: club, carry, one sentence.
 // Auto-loads the caddie read on mount — no "Get read" button. Persona + scores
@@ -36,8 +37,21 @@ const PINS = ["front", "middle", "back"] as const;
 const DEFAULT_PERSONA = "rain_man"; // per the brief
 const PERSONA_KEY = "gai-caddie-persona";
 const SCORES_KEY = "gai-play-scores";
+const PUTTS_KEY = "gai-play-putts";
+// Active-round id, keyed by course → { date, roundId }. localStorage stays the
+// source of truth for the active round; Neon is the persistence layer behind it.
+const ROUND_ID_KEY = "gai-play-round-id";
 
 const SCORE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
+const PUTT_OPTIONS = [0, 1, 2, 3, 4];
+
+/** Today's date as YYYY-MM-DD in local time (matches the played_date we store). */
+function today(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
 
 interface SseEvent {
   event: string;
@@ -88,6 +102,7 @@ export default function HoleView({
   imageSrc: string;
   totalHoles: number;
 }) {
+  const router = useRouter();
   const [persona, setPersona] = useState(DEFAULT_PERSONA);
   const [windMph, setWindMph] = useState("");
   const [windDir, setWindDir] = useState<string>("Into");
@@ -100,8 +115,28 @@ export default function HoleView({
   const [caddieText, setCaddieText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [score, setScore] = useState<number | null>(null);
+  const [putts, setPutts] = useState<number | null>(null);
+  const [allScored, setAllScored] = useState(false);
 
-  // Hydrate persona + this hole's saved score from localStorage on mount.
+  // The active round's id (Neon), resolved on mount. A ref so the fire-and-forget
+  // sync always sees the latest value without re-creating its callback.
+  const roundIdRef = useRef<string | null>(null);
+
+  // Count how many of this course's holes have a saved score → drives the Finish
+  // button (appears once all holes are scored).
+  const refreshAllScored = useCallback(() => {
+    try {
+      const scores = JSON.parse(localStorage.getItem(SCORES_KEY) ?? "{}");
+      const n = Object.keys(scores).filter(
+        (k) => k.startsWith(`${courseId}-`) && typeof scores[k] === "number",
+      ).length;
+      setAllScored(n >= totalHoles);
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, [courseId, totalHoles]);
+
+  // Hydrate persona + this hole's saved score/putts from localStorage on mount.
   useEffect(() => {
     try {
       const storedPersona = localStorage.getItem(PERSONA_KEY);
@@ -109,10 +144,68 @@ export default function HoleView({
       const scores = JSON.parse(localStorage.getItem(SCORES_KEY) ?? "{}");
       const saved = scores?.[`${courseId}-${holeNumber}`];
       if (typeof saved === "number") setScore(saved);
+      const allPutts = JSON.parse(localStorage.getItem(PUTTS_KEY) ?? "{}");
+      const savedPutts = allPutts?.[`${courseId}-${holeNumber}`];
+      if (typeof savedPutts === "number") setPutts(savedPutts);
     } catch {
       /* localStorage unavailable — fall back to defaults */
     }
-  }, [courseId, holeNumber]);
+    refreshAllScored();
+  }, [courseId, holeNumber, refreshAllScored]);
+
+  // Ensure a Neon round exists for today's play on this course. Reuses an existing
+  // round from localStorage if one was already opened today; otherwise creates one.
+  // Best-effort: a failure here never blocks play (localStorage is the truth).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const map = JSON.parse(localStorage.getItem(ROUND_ID_KEY) ?? "{}");
+        const existing = map?.[courseId];
+        if (existing && existing.date === today() && typeof existing.roundId === "string") {
+          roundIdRef.current = existing.roundId;
+          return;
+        }
+        const res = await fetch("/api/rounds", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ courseId, playedDate: today(), teeSet: "white" }),
+        });
+        if (!res.ok) return;
+        const { roundId } = (await res.json()) as { roundId: string };
+        if (cancelled || !roundId) return;
+        roundIdRef.current = roundId;
+        map[courseId] = { date: today(), roundId };
+        localStorage.setItem(ROUND_ID_KEY, JSON.stringify(map));
+      } catch {
+        /* offline / localStorage unavailable — play continues on localStorage */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
+
+  // Fire-and-forget: persist this hole's score to Neon. Never blocks the UI; a
+  // failed write is silently dropped (localStorage already holds the score).
+  const syncHole = useCallback(
+    (strokes: number, puttCount: number | null) => {
+      const roundId = roundIdRef.current;
+      if (!roundId) return;
+      void fetch(`/api/rounds/${roundId}/holes`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          holeNumber,
+          strokes,
+          putts: puttCount,
+        }),
+      }).catch(() => {
+        /* fire and forget */
+      });
+    },
+    [holeNumber],
+  );
 
   // Abort any in-flight read when a new one starts or the component unmounts.
   const abortRef = useRef<AbortController | null>(null);
@@ -206,6 +299,24 @@ export default function HoleView({
     } catch {
       /* localStorage unavailable — selection is still reflected in UI state */
     }
+    // Persist to Neon (fire-and-forget) and recompute whether the round is complete.
+    syncHole(n, putts);
+    refreshAllScored();
+  }
+
+  function choosePutts(n: number) {
+    const next = putts === n ? null : n; // tap again to clear
+    setPutts(next);
+    try {
+      const all = JSON.parse(localStorage.getItem(PUTTS_KEY) ?? "{}");
+      if (next == null) delete all[`${courseId}-${holeNumber}`];
+      else all[`${courseId}-${holeNumber}`] = next;
+      localStorage.setItem(PUTTS_KEY, JSON.stringify(all));
+    } catch {
+      /* localStorage unavailable — selection is still reflected in UI state */
+    }
+    // Only sync once a score exists (strokes is required on the round_hole row).
+    if (score != null) syncHole(score, next);
   }
 
   function choosePersona(id: string) {
@@ -303,7 +414,38 @@ export default function HoleView({
             </button>
           ))}
         </div>
+
+        {/* Putts (optional) — smaller chips, muted label. Tap again to clear. */}
+        <div className="mb-putts-label mono">Putts</div>
+        <div className="mb-putts">
+          {PUTT_OPTIONS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              className={`mb-putt-chip mono${putts === n ? " selected" : ""}`}
+              onClick={() => choosePutts(n)}
+              aria-pressed={putts === n}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
       </section>
+
+      {/* Finish round — appears once every hole has a score. */}
+      {allScored && (
+        <button
+          type="button"
+          className="mb-finish-btn mono"
+          onClick={() => {
+            const roundId = roundIdRef.current;
+            if (roundId) router.push(`/play/${courseId}/recap/${roundId}`);
+            else router.push(`/play/${courseId}`);
+          }}
+        >
+          Finish round →
+        </button>
+      )}
 
       {/* Hole navigation */}
       <nav className="mb-nav">

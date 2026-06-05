@@ -61,6 +61,15 @@ const FOCUS_OPTIONS: { label: string; area: string }[] = [
   { label: "Short irons", area: "short_irons" },
 ];
 
+// A Recap weakness arrives as `?focus=three_putt_pct`; map the scoring-stat name
+// onto the practice focus chip it implies (same mapping the engine ranker uses).
+const FOCUS_FROM_PARAM: Record<string, string> = {
+  three_putt_pct: "lag_putting",
+  doubles_per_round: "driver",
+  scrambling_pct: "chipping",
+  fairway_pct: "driver",
+};
+
 const CONFIDENCE_COLOR: Record<string, string> = {
   measured: "var(--green)",
   partial: "var(--amber)",
@@ -137,6 +146,7 @@ export default function PracticePage() {
   const [rating, setRating] = useState(0);
   const [recap, setRecap] = useState("");
   const [focus, setFocus] = useState<Set<string>>(new Set());
+  const [focusHighlight, setFocusHighlight] = useState<string | null>(null);
   // type-specific
   const [facility, setFacility] = useState("");
   const [surface, setSurface] = useState("");
@@ -161,6 +171,23 @@ export default function PracticePage() {
   // Default date to today on the client (avoids a hydration mismatch).
   useEffect(() => {
     setDate(new Date().toISOString().slice(0, 10));
+  }, []);
+
+  // A Recap "Take to Practice →" link lands here with ?focus=<area>. Pre-select the
+  // implied focus chip and highlight it so the session log opens on that weakness.
+  // Read from window (not useSearchParams) to avoid a build-time Suspense boundary.
+  useEffect(() => {
+    try {
+      const raw = new URLSearchParams(window.location.search).get("focus");
+      if (!raw) return;
+      const area = FOCUS_FROM_PARAM[raw] ?? raw;
+      if (FOCUS_OPTIONS.some((f) => f.area === area)) {
+        setFocus((s) => new Set(s).add(area));
+        setFocusHighlight(area);
+      }
+    } catch {
+      /* no window / bad param — ignore */
+    }
   }, []);
 
   const loadConfidence = useCallback(async () => {
@@ -647,8 +674,11 @@ export default function PracticePage() {
               <button
                 key={f.area}
                 type="button"
-                className={`pr-chip${focus.has(f.area) ? " on" : ""}`}
-                onClick={() => setFocus((s) => toggle(s, f.area))}
+                className={`pr-chip${focus.has(f.area) ? " on" : ""}${focusHighlight === f.area ? " focus-from-recap" : ""}`}
+                onClick={() => {
+                  setFocus((s) => toggle(s, f.area));
+                  if (focusHighlight === f.area) setFocusHighlight(null);
+                }}
               >
                 {f.label}
               </button>

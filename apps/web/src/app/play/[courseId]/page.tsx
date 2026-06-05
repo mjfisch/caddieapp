@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPool } from "@gai/api";
+import { getPool, listRounds, runMigrations } from "@gai/api";
 import HoleList, { type PlayHole } from "./HoleList";
 
 // DB-backed, server-only. pg needs the Node runtime; never statically cache.
@@ -47,6 +47,10 @@ export default async function CoursePlayIndexPage({
     yardageWhite: h.yardage_white,
   }));
 
+  // Past rounds (Phase 5) — persisted in Neon, newest first.
+  await runMigrations();
+  const pastRounds = await listRounds(courseId);
+
   return (
     <main className="mb-index-page">
       <header className="mb-index-header">
@@ -62,6 +66,34 @@ export default async function CoursePlayIndexPage({
       ) : (
         <HoleList courseId={courseId} holes={holes} />
       )}
+
+      {pastRounds.length > 0 && (
+        <section className="mb-past">
+          <div className="mb-past-label mono">Past rounds</div>
+          <ul className="mb-past-list">
+            {pastRounds.map((r) => {
+              const label = r.vsPar === 0 ? "E" : r.vsPar > 0 ? `+${r.vsPar}` : `${r.vsPar}`;
+              const cls = r.vsPar < 0 ? "rc-green" : r.vsPar === 0 ? "rc-text" : "rc-amber";
+              return (
+                <li key={r.id}>
+                  <Link href={`/play/${courseId}/recap/${r.id}`} className="mb-past-row">
+                    <span className="mb-past-date mono">{formatPlayedDate(r.playedDate)}</span>
+                    <span className="mb-past-strokes mono">{r.totalStrokes} strokes</span>
+                    <span className={`mb-past-vspar mono ${cls}`}>{label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
     </main>
   );
+}
+
+// "2026-06-05" → "Jun 5" (parsed as plain parts; no Date tz shift).
+function formatPlayedDate(iso: string): string {
+  const [, m, d] = iso.split("-");
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[Number(m) - 1] ?? ""} ${Number(d)}`;
 }

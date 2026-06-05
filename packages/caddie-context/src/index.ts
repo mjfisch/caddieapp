@@ -13,3 +13,8 @@ export {
   buildPracticeCoachLayer,
   type CoachDrill,
 } from './assembler'
+export {
+  assembleRoundRecapPrompt,
+  buildRoundRecapLayer,
+  type RoundRecapStats,
+} from './assembler'

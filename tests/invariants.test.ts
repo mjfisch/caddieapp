@@ -16,7 +16,15 @@ import {
   type PersonaRiskConfig,
 } from "@gai/sg-engine";
 import { LAYER_ORDER, buildPracticeCoachLayer, assemblePracticePrompt } from "@gai/caddie-context";
-import { getPool, runStrategyStream, runMigrations } from "@gai/api";
+import {
+  getPool,
+  runStrategyStream,
+  runMigrations,
+  createRound,
+  upsertRoundHole,
+  getRound,
+  computeScoringWeaknesses,
+} from "@gai/api";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (p: string) => readFileSync(root + p, "utf8");
@@ -517,5 +525,100 @@ describe("Phase 4.5 — practice coach: deterministic ranking, Layer-5 swap, inv
     const route = read("apps/web/src/app/api/practice/coach/route.ts");
     expect(route.includes("ANTHROPIC_API_KEY"), "coach route must not name the key").toBe(false);
     expect(route.includes("NEXT_PUBLIC_"), "coach route must not use a NEXT_PUBLIC_ var").toBe(false);
+  });
+});
+
+// ── Phase 5 — score backend, round persistence, post-round recap ────────────────
+describe("Phase 5 — rounds: persistence, upsert idempotency, scoring weaknesses", () => {
+  const hasDb = Boolean(process.env.DATABASE_URL);
+
+  /** Insert a throwaway course so a test's rounds are isolated from real data. */
+  async function makeCourse(name: string): Promise<string> {
+    const pool = getPool();
+    const { rows } = await pool.query<{ id: string }>(
+      "INSERT INTO course (name) VALUES ($1) RETURNING id",
+      [name],
+    );
+    return rows[0]!.id;
+  }
+
+  it.skipIf(!hasDb)(
+    "1. round creation round-trip: createRound writes a row; getRound reads it back with the right courseId + date",
+    async () => {
+      await runMigrations();
+      const courseId = await makeCourse("Phase5 Round-Trip Course");
+      const { roundId } = await createRound({
+        courseId,
+        playedDate: "2026-06-05",
+        teeSet: "white",
+      });
+      expect(roundId).toMatch(/^[0-9a-f-]{36}$/);
+
+      const round = await getRound(roundId);
+      expect(round).not.toBeNull();
+      expect(round!.courseId).toBe(courseId);
+      expect(round!.playedDate).toBe("2026-06-05");
+      expect(round!.teeSet).toBe("white");
+    },
+  );
+
+  it.skipIf(!hasDb)(
+    "2. hole upsert idempotency: a second POST for the same hole UPDATES rather than duplicating",
+    async () => {
+      await runMigrations();
+      const courseId = await makeCourse("Phase5 Upsert Course");
+      const { roundId } = await createRound({ courseId, playedDate: "2026-06-05" });
+
+      await upsertRoundHole(roundId, { holeNumber: 1, strokes: 5, putts: 2 });
+      await upsertRoundHole(roundId, { holeNumber: 1, strokes: 4, putts: 1 });
+
+      const round = await getRound(roundId);
+      const hole1 = round!.holes.filter((h) => h.holeNumber === 1);
+      expect(hole1).toHaveLength(1); // upsert, not duplicate
+      expect(hole1[0]!.strokes).toBe(4); // the update won
+      expect(hole1[0]!.putts).toBe(1);
+    },
+  );
+
+  it.skipIf(!hasDb)(
+    "3. scoring weakness query: 3 rounds × 2 three-putts (= 11.1%) surfaces three_putt_pct as a weakness > 6.0",
+    async () => {
+      await runMigrations();
+      const courseId = await makeCourse("Phase5 Weakness Course");
+
+      // 3 rounds, 18 holes each = 54 holes; 2 three-putts per round = 6/54 = 11.1%.
+      for (let r = 0; r < 3; r++) {
+        const { roundId } = await createRound({ courseId, playedDate: "2026-06-05" });
+        for (let h = 1; h <= 18; h++) {
+          await upsertRoundHole(roundId, { holeNumber: h, strokes: 4, putts: h <= 2 ? 3 : 2 });
+        }
+      }
+
+      // Scoped to this synthetic course so the assertion is deterministic regardless
+      // of any other rounds present in the shared dev DB.
+      const weaknesses = await computeScoringWeaknesses({}, { courseId });
+      const threePutt = weaknesses.find((w) => w.area === "three_putt_pct");
+      expect(threePutt, "three_putt_pct should surface as a weakness").toBeDefined();
+      expect(threePutt!.value).toBeGreaterThan(6.0);
+      expect(threePutt!.benchmark).toBe(6.0);
+    },
+  );
+
+  it("4. recap route key safety: the route never names the key or a NEXT_PUBLIC_ var", () => {
+    const route = read("apps/web/src/app/api/rounds/[roundId]/recap/route.ts");
+    expect(route.includes("ANTHROPIC_API_KEY"), "recap route must not name the key").toBe(false);
+    expect(route.includes("NEXT_PUBLIC_"), "recap route must not use a NEXT_PUBLIC_ var").toBe(false);
+  });
+
+  it("5. Mode B untouched: the hole route still resolves a hole and still has the score chips + caddie panel", () => {
+    const page = read("apps/web/src/app/play/[courseId]/holes/[holeNumber]/page.tsx");
+    // Still the DB-backed Mode B page that 200s on a real hole / 404s on a missing one.
+    expect(page.includes("HoleView")).toBe(true);
+    expect(page.includes("FROM hole")).toBe(true);
+    expect(page.includes("notFound")).toBe(true);
+
+    const view = read("apps/web/src/app/play/[courseId]/holes/[holeNumber]/HoleView.tsx");
+    expect(view.includes("mb-score-chip"), "score chips must remain").toBe(true);
+    expect(view.includes("mb-caddie"), "the caddie panel must remain").toBe(true);
   });
 });

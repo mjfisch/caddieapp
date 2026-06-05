@@ -5,6 +5,7 @@ import { assemblePracticePrompt, type CoachDrill } from "@gai/caddie-context";
 import { PERSONA_VOICES } from "@gai/caddie-context";
 import { getPool } from "./db";
 import { getAnthropic } from "./anthropic";
+import { computeScoringWeaknesses } from "./rounds";
 
 // =============================================================
 // Phase 4.5 — Practice tab server logic (D12–D15). The input side of the loop.
@@ -319,6 +320,12 @@ async function loadCoachInputs(pool: pg.Pool): Promise<{
     "SELECT club, feel_level FROM club_confidence",
   );
 
+  // Phase 5: real scoring weaknesses, computed from the persisted round_hole data
+  // (Play → Recap → Practice loop). Falls back to the documented placeholder
+  // figures only until a round has been logged, so the coach is never empty-handed.
+  const computed = await computeScoringWeaknesses({ pool });
+  const scoringWeaknesses = computed.length ? computed : SCORING_WEAKNESSES.map((w) => ({ ...w }));
+
   // Invariant #1: the engine ranks; the LLM never decides what to work on.
   const signals = rankPracticeSignals({
     clubDispersion: disp.map((d) => ({
@@ -328,7 +335,7 @@ async function loadCoachInputs(pool: pg.Pool): Promise<{
       carrySD: Number(d.carry_sd_yards),
     })),
     clubConfidence: feel.map((f) => ({ club: f.club, feelLevel: f.feel_level })),
-    scoringWeaknesses: SCORING_WEAKNESSES.map((w) => ({ ...w })),
+    scoringWeaknesses,
   });
 
   // Invariant #4: the ONLY drills (and URLs) the model may cite come from here.

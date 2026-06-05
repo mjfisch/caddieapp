@@ -48,49 +48,71 @@ export function runMigrations(): Promise<void> {
   return migrationsPromise;
 }
 
+// A fixed, arbitrary key for the migration advisory lock (see applyMigrations).
+const MIGRATION_LOCK_KEY = 778_899;
+
 async function applyMigrations(): Promise<void> {
   const pool = getPool();
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS _migrations (
-      filename text PRIMARY KEY,
-      applied_at timestamptz NOT NULL DEFAULT now()
-    );
-  `);
+  // The whole apply runs in ONE transaction guarded by a TRANSACTION-scoped
+  // advisory lock. Why both:
+  //   - The lock serializes concurrent migrators (parallel test workers, concurrent
+  //     serverless cold-starts). Without it, two processes racing to create the SAME
+  //     brand-new table both run `CREATE TABLE IF NOT EXISTS`, and Postgres' system
+  //     catalog is NOT safe under concurrent creation of one relation — the loser
+  //     dies on a pg_type duplicate ("pg_type_typname_nsp_index"), which IF NOT
+  //     EXISTS cannot prevent.
+  //   - pg_advisory_xact_lock (not the session-level pg_advisory_lock) auto-releases
+  //     at COMMIT/ROLLBACK *and* if the connection drops. A killed worker therefore
+  //     can never leak the lock and wedge every later run — the failure mode a
+  //     session lock has.
+  const client = await pool.connect();
+  let current = "(pre-flight)";
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock($1)", [MIGRATION_LOCK_KEY]);
 
-  const files = readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql"))
-    .sort(); // filename order: 001_… before 002_…
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS _migrations (
+        filename text PRIMARY KEY,
+        applied_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
 
-  for (const filename of files) {
-    const { rowCount } = await pool.query(
-      "SELECT 1 FROM _migrations WHERE filename = $1",
-      [filename]
-    );
-    if (rowCount) continue; // already applied — skip
+    const files = readdirSync(MIGRATIONS_DIR)
+      .filter((f) => f.endsWith(".sql"))
+      .sort(); // filename order: 001_… before 002_…
 
-    const sql = readFileSync(join(MIGRATIONS_DIR, filename), "utf8");
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
+    for (const filename of files) {
+      const { rowCount } = await client.query(
+        "SELECT 1 FROM _migrations WHERE filename = $1",
+        [filename]
+      );
+      if (rowCount) continue; // already applied — skip
+
+      current = filename;
+      const sql = readFileSync(join(MIGRATIONS_DIR, filename), "utf8");
       await client.query(sql);
-      // ON CONFLICT DO NOTHING: two processes can race to apply a brand-new
-      // migration the first time (parallel test workers, or concurrent serverless
-      // cold-starts). Every migration body is guarded (IF NOT EXISTS / NOT EXISTS),
-      // so a double-apply is harmless — but a plain INSERT here would throw a
-      // duplicate-key on _migrations and crash the loser. This keeps it idempotent.
+      // ON CONFLICT DO NOTHING: belt-and-suspenders alongside the lock above. Every
+      // migration body is guarded (IF NOT EXISTS / NOT EXISTS), so a double-apply is
+      // harmless — but a plain INSERT here would throw a duplicate-key on _migrations.
       await client.query(
         "INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING",
         [filename],
       );
-      await client.query("COMMIT");
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw new Error(
-        `migration ${filename} failed: ${err instanceof Error ? err.message : String(err)}`
-      );
-    } finally {
-      client.release();
     }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* connection already broken — the xact lock drops with it */
+    }
+    throw new Error(
+      `migration ${current} failed: ${err instanceof Error ? err.message : String(err)}`
+    );
+  } finally {
+    client.release();
   }
 }

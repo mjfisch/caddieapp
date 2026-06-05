@@ -247,3 +247,126 @@ export function assemblePracticePrompt(
     PRACTICE_FOOTER,
   ].join('\n')
 }
+
+// =============================================================
+// Phase 5 — the post-round caddie recap (D-5). The SAME five-layer assembler with
+// another Layer-5 SWAP: where the yardage book puts this hole's SG output and the
+// practice coach puts ranked signals, the recap puts the FINISHED round's scoring
+// stats. Layers 1, 3, 4 are unchanged. Layer 2 (course/hole) is OMITTED — the
+// round is over; there is no single hole in front of the player.
+//
+// INVARIANT #1: every figure below is computed in code (services/api summarizeRound
+// / computeScoringWeaknesses). The recap NARRATES these numbers — it never recomputes
+// a stat or invents a figure. INVARIANT #4: no URLs — this is plain prose.
+// =============================================================
+
+/** The round stat shape the recap prompt consumes (a slice of services/api RoundStats). */
+export type RoundRecapStats = {
+  courseName: string
+  playedDate: string
+  holesPlayed: number
+  totalStrokes: number
+  totalPar: number
+  vsPar: number
+  totalPutts: number | null
+  fairwaysHit: number
+  fairwaysPossible: number
+  fairwayPct: number | null
+  gir: number
+  girPct: number | null
+  scramblingPct: number | null
+}
+
+/** "+7" / "-1" / "E" — the conventional golf score-to-par label. */
+function vsParLabel(vsPar: number): string {
+  if (vsPar === 0) return 'E'
+  return vsPar > 0 ? `+${vsPar}` : `${vsPar}`
+}
+
+/**
+ * Builds the Layer 5 block for the round recap — the finished round's stats,
+ * verbatim from the computed RoundStats + scoring weaknesses. Deliberately free of
+ * any hole/course-strategy vocabulary (no carry target, no danger side): this is
+ * the swapped-in Layer 5 that replaces the yardage book's hole output.
+ */
+export function buildRoundRecapLayer(
+  stats: RoundRecapStats,
+  weaknesses: Array<{ area: string; value: number; benchmark: number }>,
+): string {
+  const lines: string[] = [
+    `Round just finished at ${stats.courseName} on ${stats.playedDate}.`,
+    `Score: ${stats.totalStrokes} strokes over ${stats.holesPlayed} holes, ${vsParLabel(stats.vsPar)} to par (par ${stats.totalPar}).`,
+  ]
+  if (stats.totalPutts != null) lines.push(`Putts: ${stats.totalPutts}.`)
+  if (stats.fairwaysPossible > 0) {
+    lines.push(
+      `Fairways hit: ${stats.fairwaysHit} of ${stats.fairwaysPossible}${stats.fairwayPct != null ? ` (${stats.fairwayPct}%)` : ''}.`,
+    )
+  }
+  lines.push(
+    `Greens in regulation: ${stats.gir} of ${stats.holesPlayed}${stats.girPct != null ? ` (${stats.girPct}%)` : ''}.`,
+  )
+  if (stats.scramblingPct != null) {
+    lines.push(`Scrambling (up-and-down when missing the green): ${stats.scramblingPct}%.`)
+  }
+
+  const weak = weaknesses.length
+    ? weaknesses
+        .map((w) => `- ${w.area} is ${w.value} vs a ${w.benchmark} benchmark — outside the line`)
+        .join('\n')
+    : '- (no metric is meaningfully outside its benchmark this round)'
+
+  return [
+    'The round, by the numbers (computed by the app — narrate these, do NOT recompute or invent any figure):',
+    lines.map((l) => `- ${l}`).join('\n'),
+    '',
+    'Flagged scoring weaknesses (the data leaks worth a practice session):',
+    weak,
+  ].join('\n')
+}
+
+const RECAP_FOOTER = `You are the caddie, speaking in the persona voice above. Give a SHORT post-round recap, three to five sentences total:
+- One line on what went well (cite a real figure from above).
+- One line on what the data says to work on (point at a flagged weakness, in the player's real numbers).
+- One sentence of genuine encouragement to close.
+
+Hard rules:
+- Use ONLY the numbers above — never invent or recompute a figure.
+- No swing mechanics (Layer 1 still wins). No drills, no URLs.
+- Speak in the persona voice; keep it tight and human, not a stat dump.`
+
+/**
+ * Assembles the full round-recap prompt: Layers 1, 3, 4 exactly as the yardage book
+ * uses them, with the finished round's stats swapped into Layer 5.
+ * persona: one of 'beta' | 'rain_man' | 'captain_69' | 'the_ringer'.
+ */
+export function assembleRoundRecapPrompt(
+  stats: RoundRecapStats,
+  weaknesses: Array<{ area: string; value: number; benchmark: number }>,
+  persona: string,
+): string {
+  const voice = PERSONA_VOICES[persona]
+  if (!voice) {
+    throw new Error(
+      `Unknown persona "${persona}". Expected one of: ${Object.keys(PERSONA_VOICES).join(', ')}.`,
+    )
+  }
+
+  return [
+    '## LAYER 1 — CORE RULES',
+    CORE_RULES,
+    '',
+    // LAYER 2 (course & hole) is intentionally omitted — the round is over.
+    '## LAYER 3 — PLAYER PROFILE',
+    PLAYER_PROFILE,
+    '',
+    '## LAYER 4 — PERSONA VOICE',
+    voice,
+    '',
+    '## LAYER 5 — ROUND RECAP',
+    buildRoundRecapLayer(stats, weaknesses),
+    '',
+    '---',
+    RECAP_FOOTER,
+  ].join('\n')
+}
