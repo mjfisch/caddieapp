@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPool } from "@gai/api";
+import StrategyPanel from "./StrategyPanel";
 
 // DB-backed, server-only. pg needs the Node runtime; never statically cache.
 export const runtime = "nodejs";
@@ -247,6 +248,10 @@ export default async function HolePage({
           </p>
         </section>
       )}
+
+      {/* Strategy — the caddie's read (Phase 3B). Client component; streams from
+          /api/strategy. Engine numbers render above the streamed caddie voice. */}
+      <StrategyPanel courseId={courseId} holeNumber={hole.number} />
 
       {/* Prev / next hole nav */}
       <nav style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>

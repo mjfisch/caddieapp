@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONFIDENCE_COLOR, CONTEXT_LAYERS } from "@gai/shared";
 import {
@@ -11,9 +12,35 @@ import {
   type PersonaRiskConfig,
 } from "@gai/sg-engine";
 import { LAYER_ORDER } from "@gai/caddie-context";
+import { getPool, runStrategyStream } from "@gai/api";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (p: string) => readFileSync(root + p, "utf8");
+
+/** Recursively collect every file under `dir` (absolute paths). */
+function walk(dir: string): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) out.push(...walk(full));
+    else out.push(full);
+  }
+  return out;
+}
+
+/** Drain an SSE byte stream into a single string. */
+async function drain(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
 
 /** Strip block and line comments so guards scan *code*, not documentation about the rule. */
 const stripComments = (s: string) =>
@@ -181,4 +208,56 @@ describe("invariant #1 (Phase 2B) — predictHole is the deterministic strategy 
     expect(r.dangerSide).not.toBeNull();
     expect(r.confidenceFlag).toBe("measured");
   });
+});
+
+// ── Phase 3B — Anthropic API route + the key boundary ───────────────────────────
+describe("invariant #3 (Phase 3B) — the Anthropic key is never client-side", () => {
+  it("no app/ file outside app/api/ names ANTHROPIC_API_KEY or a NEXT_PUBLIC_ var", () => {
+    const appDir = join(root, "apps/web/src/app");
+    const apiDir = join(appDir, "api") + sep; // server-only routes live here — exempt
+    const files = walk(appDir).filter(
+      (f) => (f.endsWith(".ts") || f.endsWith(".tsx")) && !f.startsWith(apiDir),
+    );
+    // The panel + page live here; if either reached for the key or a NEXT_PUBLIC_
+    // var, the value would be inlined into the client bundle — invariant #3 broken.
+    expect(files.length).toBeGreaterThan(0);
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      const where = relative(root, f);
+      expect(src.includes("ANTHROPIC_API_KEY"), `${where} must not name the key`).toBe(false);
+      expect(src.includes("NEXT_PUBLIC_"), `${where} must not use a NEXT_PUBLIC_ var`).toBe(false);
+    }
+  });
+});
+
+describe("invariant #1 (Phase 3B) — the strategy stream carries the engine's numbers", () => {
+  const hasDb = Boolean(process.env.DATABASE_URL);
+
+  it.skipIf(!hasDb)(
+    "Fox Bend Hole 3 + Rain Man streams club '8' and carry '150' from the engine, not the LLM",
+    async () => {
+      const pool = getPool();
+      const { rows } = await pool.query<{ id: string }>(
+        "SELECT id FROM course WHERE name = $1",
+        ["Fox Bend Golf Course"],
+      );
+      expect(rows[0]).toBeDefined();
+      const courseId = rows[0]!.id;
+
+      // The mocked caddie voice is deliberately digit-free, so any "8" or "150" in
+      // the stream can only have come from the engine's EngineView block.
+      const fixed = "Take the safe two-putt target. Center of the green. Commit to it.";
+      const stream = await runStrategyStream(
+        { courseId, holeNumber: 3, persona: "rain_man", conditions: {} },
+        { streamText: async function* () { yield fixed; } },
+      );
+
+      const out = await drain(stream);
+      expect(out).toContain("8"); // the club (8i) — from predictHole
+      expect(out).toContain("150"); // the carry target — from predictHole
+      // Leak guard (invariant #5): internal artifacts never reach the client.
+      expect(out).not.toContain("## LAYER");
+      expect(out.toLowerCase()).not.toContain("reasoning");
+    },
+  );
 });
