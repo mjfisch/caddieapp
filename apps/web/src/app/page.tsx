@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { CONFIDENCE_COLOR, type ConfidenceFlag } from "@gai/shared";
 
