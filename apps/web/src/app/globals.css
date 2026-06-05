@@ -53,12 +53,9 @@ a:hover { text-decoration: underline; }
    320px on desktop, 240px on mobile (no Tailwind in this project — utility
    class mirrors the .mono/.serif convention above). */
 .hole-image {
-  display: block;
   width: 100%;
   height: auto;
-  max-height: 320px;
-  object-fit: cover;
-}
-@media (max-width: 640px) {
-  .hole-image { max-height: 240px; }
+  max-height: 600px;
+  object-fit: contain;
+  display: block;
 }
