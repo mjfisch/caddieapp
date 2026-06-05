@@ -6,7 +6,7 @@
 // Determinism is the contract; the invariant tests are the safety net.
 
 /** Engine identity — used by the Phase 0 round-trip to prove the package wires in. */
-export const SG_ENGINE_VERSION = "0.0.0" as const;
+export const SG_ENGINE_VERSION = "0.2.0" as const;
 
 /**
  * Pure determinism probe. Same input -> same output, forever, zero side effects.

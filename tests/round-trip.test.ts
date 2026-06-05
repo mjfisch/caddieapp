@@ -11,7 +11,7 @@ describe.skipIf(!hasDb)("round-trip: client -> server -> Postgres -> back", () =
     const result = await checkHealth();
     expect(result.message).toBe("hello");
     expect(result.source).toBe("database");
-    expect(result.sgEngineVersion).toBe("0.0.0");
+    expect(result.sgEngineVersion).toMatch(/^\d+\.\d+\.\d+$/);
     // dbTime is a real ISO timestamp from Postgres
     expect(Number.isNaN(Date.parse(result.dbTime))).toBe(false);
   });
