@@ -54,6 +54,29 @@ const MIGRATION_LOCK_KEY = 778_899;
 async function applyMigrations(): Promise<void> {
   const pool = getPool();
 
+  // Read the migration list FIRST, before taking any DB resources. In a bundled
+  // serverless runtime (Vercel) the raw .sql files may not be traced into the
+  // function, so this dir can be absent. That is NOT fatal: migrations are applied
+  // out-of-band against the shared Neon DB from local dev (the test + seed flows),
+  // so a serverless instance that can't see the files simply has nothing to do.
+  // Skip cleanly rather than 500-ing every DB-backed route. A fresh DB is still
+  // migrated by whoever CAN read the files (dev, or a build with the files traced).
+  let files: string[];
+  try {
+    files = readdirSync(MIGRATIONS_DIR)
+      .filter((f) => f.endsWith(".sql"))
+      .sort(); // filename order: 001_… before 002_…
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
+      console.warn(
+        `[db] migrations dir not found at ${MIGRATIONS_DIR}; assuming the DB is migrated out-of-band (bundled runtime). Skipping.`,
+      );
+      return;
+    }
+    throw err;
+  }
+  if (files.length === 0) return;
+
   // The whole apply runs in ONE transaction guarded by a TRANSACTION-scoped
   // advisory lock. Why both:
   //   - The lock serializes concurrent migrators (parallel test workers, concurrent
@@ -78,10 +101,6 @@ async function applyMigrations(): Promise<void> {
         applied_at timestamptz NOT NULL DEFAULT now()
       );
     `);
-
-    const files = readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith(".sql"))
-      .sort(); // filename order: 001_… before 002_…
 
     for (const filename of files) {
       const { rowCount } = await client.query(
