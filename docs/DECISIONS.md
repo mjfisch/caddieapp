@@ -19,6 +19,15 @@ The importer flips a club to `measured` at `MEASURED_MIN_SHOTS = 10` real shots.
 - **Why not a flag-only `UPDATE`.** `club_dispersion.shot_count` is stale at 0 for the sub-10 clubs (recompute never wrote it), so a literal `WHERE shot_count >= 5` flips nothing, and flipping the flag without recomputing would label seeded estimates as measured — an invariant #2 violation.
 - **Scope.** This is a per-bag data-quality call for a single-player build, not a change to the importer's default (still 10). 5 shots is thin; revisit if multi-player data lands. Confidence still only ratchets up — a `measured` club is never downgraded.
 
+## D-3A-1 — Five-layer vocabulary relocked to assembler-section names (RESOLVED, 2026-06-05, Phase 3A)
+
+The locked layer order in `@gai/shared` `CONTEXT_LAYERS` was renamed from the original semantic roles `accuracy / core / profile / persona / situation` to the assembler-section names `core_rules / course_hole / player_profile / persona_voice / live_input`. `@gai/caddie-context` `LAYER_ORDER` is the standalone definition (Phase 3A spec) and mirrors `CONTEXT_LAYERS` exactly.
+
+- **Why.** The Phase 3A assembler spec defines its own five `LAYER_ORDER` names and requires exporting them as `LAYER_ORDER` from `@gai/caddie-context`. The previous export aliased `CONTEXT_LAYERS`; a single exported symbol cannot hold both vocabularies. Per CLAUDE.md, redefining the five-layer architecture requires a decision-log entry — this is it.
+- **Same architecture, new labels.** The five layers and their precedence are unchanged. Layer 1 is still the inviolable accuracy/rules layer that wins (invariant #5); `core_rules` *is* "accuracy wins" expressed as the hard-constraint block. The engine's numbers now live under Layer 2 (`course_hole`), where the `StrategyResult` is rendered.
+- **Drift guard.** The invariant #5 test still asserts `LAYER_ORDER` deep-equals `CONTEXT_LAYERS`, so the two definitions cannot silently diverge. One existing test (`invariant #5`) was updated to the new vocabulary; all other tests carry forward untouched.
+- **Scope.** Naming only. No persona/risk-config change (invariant #6 untouched), no math change, no I/O added to `caddie-context`.
+
 ## D16 — Two design systems (RESOLVED v2.1, 2026-06-04)
 
 GAI Caddie product UI = the dark as-built tokens (this repo's `globals.css`). BTP brand = the agency's light marketing identity, never app chrome — only a "Built by Back Tee Partners" attribution. See Build Plan §10 D16 for the full entry.

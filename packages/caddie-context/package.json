@@ -4,5 +4,5 @@
   "private": true,
   "type": "module",
   "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@gai/shared": "*" }
+  "dependencies": { "@gai/shared": "*", "@gai/sg-engine": "*" }
 }

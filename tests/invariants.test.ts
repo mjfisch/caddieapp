@@ -59,8 +59,11 @@ describe("invariant #3 — the Anthropic key is server-side only", () => {
 });
 
 describe("invariant #5 — five layers compose in order; Layer 1 (accuracy) wins", () => {
-  it("the locked layer order starts with accuracy", () => {
-    expect(CONTEXT_LAYERS[0]).toBe("accuracy");
+  it("the locked layer order starts with the core rules (accuracy wins)", () => {
+    // Relocked in Phase 3A — see docs/DECISIONS.md "D-3A-1". Layer 1 is the
+    // inviolable rules layer; the equality below is the drift guard between
+    // @gai/shared's CONTEXT_LAYERS and caddie-context's LAYER_ORDER.
+    expect(CONTEXT_LAYERS[0]).toBe("core_rules");
     expect(LAYER_ORDER).toEqual(CONTEXT_LAYERS);
     expect(CONTEXT_LAYERS).toHaveLength(5);
   });

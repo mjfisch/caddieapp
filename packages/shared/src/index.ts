@@ -18,14 +18,19 @@ export const CONFIDENCE_COLOR: Record<ConfidenceFlag, string> = {
 
 /**
  * The five context layers, in precedence order (README_caddie_context_architecture.md).
- * Layer 1 (accuracy) wins — invariant #5. Index 0 = highest precedence.
+ * Layer 1 (core rules / accuracy) wins — invariant #5. Index 0 = highest precedence.
+ *
+ * Relocked v2 (Phase 3A) from the original accuracy/core/profile/persona/situation
+ * names to these assembler-section names — see docs/DECISIONS.md "D-3A-1". The
+ * caddie-context LAYER_ORDER mirrors this exactly; the invariant test asserts the
+ * two are equal so they cannot drift.
  */
 export const CONTEXT_LAYERS = [
-  "accuracy", // Layer 1 — the numbers from the SG engine. Never overridden.
-  "core",     // Layer 2 — core caddie rules
-  "profile",  // Layer 3 — player_profile_michael.md
-  "persona",  // Layer 4 — voice x risk-config
-  "situation",// Layer 5 — the live hole/shot context
+  "core_rules",     // Layer 1 — hard constraints; accuracy wins, never overridden.
+  "course_hole",    // Layer 2 — hole data + the engine's StrategyResult (the numbers).
+  "player_profile", // Layer 3 — player_profile_michael.md
+  "persona_voice",  // Layer 4 — voice (the risk-config half lives in the SG engine)
+  "live_input",     // Layer 5 — the live hole/shot context
 ] as const;
 export type ContextLayer = (typeof CONTEXT_LAYERS)[number];
 

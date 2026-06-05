@@ -5,10 +5,6 @@
 // This package assembles context for the LLM — it NEVER does math (that's @gai/sg-engine)
 // and NEVER lets a persona voice override a number or recommend a clear loser.
 
-import { CONTEXT_LAYERS, type ContextLayer } from "@gai/shared";
-
-/** Re-export the locked layer order so the assembler has a single source of truth. */
-export const LAYER_ORDER: readonly ContextLayer[] = CONTEXT_LAYERS;
-
-// Phase 3 surface (not yet implemented):
-// export function assembleContext(layers: LayerInputs): AssembledPrompt;
+export { LAYER_ORDER, type LayerName } from './layers'
+export { CORE_RULES, PLAYER_PROFILE, PERSONA_VOICES } from './static'
+export { assemblePrompt, buildCourseHoleLayer, buildLiveInputLayer } from './assembler'
