@@ -46,22 +46,39 @@ export default function Home() {
         The strokes-gained engine, in your pocket.
       </p>
 
-      {/* Primary entry point into the yardage book */}
-      <Link
-        href="/courses"
-        style={{
-          background: "var(--green)",
-          color: "var(--bg)",
-          border: "none",
-          borderRadius: 10,
-          padding: "13px 22px",
-          fontSize: 15,
-          fontWeight: 600,
-          textDecoration: "none",
-        }}
-      >
-        Open the yardage book →
-      </Link>
+      {/* Entry points: primary = prep/yardage book, secondary = on-course play */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+        <Link
+          href="/courses"
+          style={{
+            background: "var(--green)",
+            color: "var(--bg)",
+            border: "none",
+            borderRadius: 10,
+            padding: "13px 22px",
+            fontSize: 15,
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          Open the yardage book →
+        </Link>
+        <Link
+          href="/play"
+          style={{
+            background: "transparent",
+            color: "var(--green)",
+            border: "1px solid var(--green)",
+            borderRadius: 10,
+            padding: "13px 22px",
+            fontSize: 15,
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          Play a round →
+        </Link>
+      </div>
 
       {/* Confidence legend — invariant #2 made visible from day one */}
       <div style={{ display: "flex", gap: 18 }}>

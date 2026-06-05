@@ -59,3 +59,396 @@ a:hover { text-decoration: underline; }
   object-fit: contain;
   display: block;
 }
+
+/* Mode B — on-course glance-and-go (Phase 4).
+   One hand, bright sunlight, 3-second reads. Full-width, no sidebars, 48px+ tap
+   targets everywhere, no horizontal scroll. The engine block (club + carry) is
+   the visual focus and must stay high-contrast in direct sun — no decorative
+   opacity on those two values. */
+
+.mb-page {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 12px 14px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-x: hidden;
+}
+
+/* Header: hole number large left, par/SI muted right, settings icon top-right. */
+.mb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mb-holenum {
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+.mb-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mb-meta {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.mb-meta-si {
+  color: var(--faint);
+}
+.mb-settings-btn {
+  min-width: 48px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.mb-persona-name {
+  margin-top: -8px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Satellite image: full width, capped at 280px, contained (overrides .hole-image). */
+.mb-image {
+  max-height: 280px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg2);
+}
+
+/* Engine block — the decision, the visual focus. */
+.mb-engine {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 0 4px;
+}
+.mb-club {
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--green);
+}
+.mb-carry {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+.mb-carry-unit {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 6px;
+}
+.mb-club-placeholder {
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--faint);
+}
+.mb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.mb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  background: var(--panel);
+  border: 1px solid var(--line2);
+}
+.mb-chip-danger {
+  color: var(--red);
+  background: rgba(240, 114, 111, 0.14);
+  border-color: rgba(240, 114, 111, 0.4);
+}
+.mb-chip-measured { color: var(--green); }
+.mb-chip-partial { color: var(--amber); }
+.mb-chip-seeded { color: var(--faint); }
+.mb-chip-layup {
+  color: var(--amber);
+  background: rgba(241, 178, 76, 0.12);
+  border-color: rgba(241, 178, 76, 0.4);
+}
+
+.mb-error {
+  margin: 0;
+  color: var(--red);
+  font-size: 14px;
+}
+
+/* Caddie voice — one short paragraph, clamped to 3 sentences upstream. */
+.mb-caddie {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+/* Score entry — tappable 1–8 chips, always visible. */
+.mb-score-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+.mb-score-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.mb-scores {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+.mb-score-chip {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.mb-score-chip.selected {
+  color: var(--bg);
+  background: var(--green);
+  border-color: var(--green);
+}
+
+/* Hole navigation — large prev/next tap targets. */
+.mb-nav {
+  display: flex;
+  gap: 10px;
+}
+.mb-nav-btn {
+  flex: 1;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  text-decoration: none;
+}
+.mb-nav-btn:hover { text-decoration: none; }
+
+/* Settings sheet — slides up; tapping the backdrop dismisses it. */
+.mb-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 4, 9, 0.62);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 40;
+}
+.mb-sheet {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  padding: 14px 18px calc(20px + env(safe-area-inset-bottom));
+  animation: mb-sheet-up 0.18s ease-out;
+}
+@keyframes mb-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.mb-sheet-handle {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line2);
+  margin-bottom: 2px;
+}
+.mb-sheet-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.mb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mb-field-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.mb-input {
+  min-height: 48px;
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+  color: var(--text);
+  width: 100%;
+}
+.mb-persona-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.mb-persona-btn {
+  min-height: 48px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.mb-persona-btn.selected {
+  color: var(--bg);
+  background: var(--green);
+  border-color: var(--green);
+  font-weight: 600;
+}
+.mb-sheet-done {
+  min-height: 48px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--green);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+/* Course play index — compact hole list. */
+.mb-index-page {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 28px 18px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.mb-index-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mb-index-back {
+  font-size: 12px;
+  color: var(--muted);
+}
+.mb-index-title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.mb-index-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+.mb-index-empty { color: var(--faint); }
+.mb-start-btn {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--green);
+  border: none;
+  border-radius: 12px;
+  text-decoration: none;
+}
+.mb-start-btn:hover { text-decoration: none; }
+.mb-hole-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mb-hole-row {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 40px 64px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+.mb-hole-row:hover { text-decoration: none; }
+.mb-hole-row-num {
+  font-size: 20px;
+  font-weight: 700;
+}
+.mb-hole-row-par {
+  font-size: 12px;
+  color: var(--muted);
+}
+.mb-hole-row-yds {
+  font-size: 13px;
+  color: var(--green);
+}
+.mb-hole-row-score {
+  font-size: 14px;
+  justify-self: end;
+}
+.mb-score-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--text);
+  font-weight: 600;
+}
+.mb-score-topar {
+  font-size: 11px;
+  color: var(--muted);
+}
+.mb-score-empty { color: var(--faint); }
