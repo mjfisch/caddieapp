@@ -74,7 +74,15 @@ async function applyMigrations(): Promise<void> {
     try {
       await client.query("BEGIN");
       await client.query(sql);
-      await client.query("INSERT INTO _migrations (filename) VALUES ($1)", [filename]);
+      // ON CONFLICT DO NOTHING: two processes can race to apply a brand-new
+      // migration the first time (parallel test workers, or concurrent serverless
+      // cold-starts). Every migration body is guarded (IF NOT EXISTS / NOT EXISTS),
+      // so a double-apply is harmless — but a plain INSERT here would throw a
+      // duplicate-key on _migrations and crash the loser. This keeps it idempotent.
+      await client.query(
+        "INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING",
+        [filename],
+      );
       await client.query("COMMIT");
     } catch (err) {
       await client.query("ROLLBACK");

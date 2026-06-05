@@ -8,3 +8,8 @@
 export { LAYER_ORDER, type LayerName } from './layers'
 export { CORE_RULES, PLAYER_PROFILE, PERSONA_VOICES } from './static'
 export { assemblePrompt, buildCourseHoleLayer, buildLiveInputLayer } from './assembler'
+export {
+  assemblePracticePrompt,
+  buildPracticeCoachLayer,
+  type CoachDrill,
+} from './assembler'

@@ -31,3 +31,20 @@ export {
   type SeedSummary,
   type PromoteSummary,
 } from "./seedDispersion";
+export {
+  createPracticeSession,
+  listPracticeSessions,
+  getClubConfidence,
+  upsertClubConfidence,
+  runPracticeCoachStream,
+  PracticeError,
+  BAG_CLUBS,
+  SCORING_WEAKNESSES,
+  PRACTICE_COACH_MODEL,
+  PRACTICE_COACH_MAX_TOKENS,
+  type PracticeDeps,
+  type PracticeSessionType,
+  type CreatePracticeSessionInput,
+  type PracticeSessionRow,
+  type ClubConfidenceView,
+} from "./practice";

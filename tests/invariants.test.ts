@@ -10,12 +10,13 @@ import {
   computeExpectedStrokes,
   sampleDispersion,
   expectedStrokesFromLie,
+  rankPracticeSignals,
   type ClubDispersion,
   type HoleInput,
   type PersonaRiskConfig,
 } from "@gai/sg-engine";
-import { LAYER_ORDER } from "@gai/caddie-context";
-import { getPool, runStrategyStream } from "@gai/api";
+import { LAYER_ORDER, buildPracticeCoachLayer, assemblePracticePrompt } from "@gai/caddie-context";
+import { getPool, runStrategyStream, runMigrations } from "@gai/api";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (p: string) => readFileSync(root + p, "utf8");
@@ -404,5 +405,117 @@ describe("Phase 4 — Mode B on-course UI", () => {
       expect(src.includes("ANTHROPIC_API_KEY"), `${f} must not name the key`).toBe(false);
       expect(src.includes("NEXT_PUBLIC_"), `${f} must not use a NEXT_PUBLIC_ var`).toBe(false);
     }
+  });
+});
+
+// ── Phase 4.5 — Practice tab (ranker + Layer-5 swap + no-fabricated-URL) ────────
+describe("Phase 4.5 — practice coach: deterministic ranking, Layer-5 swap, invariant #4", () => {
+  const hasDb = Boolean(process.env.DATABASE_URL);
+
+  // A representative current state: driver is the data gap, a club leans right,
+  // a club is low feel-trust, and three-putts overshoot the benchmark.
+  const RANKER_INPUT = {
+    clubDispersion: [
+      { club: "driver", confidence: "partial", lateralSD: 16.1, carrySD: 19.8 },
+      { club: "3h", confidence: "measured", lateralSD: 18.0, carrySD: 5.7 },
+      { club: "7i", confidence: "measured", lateralSD: 7.8, carrySD: 7.5 },
+    ],
+    clubConfidence: [{ club: "4i", feelLevel: 1 }],
+    scoringWeaknesses: [
+      { area: "three_putt_pct", value: 10.2, benchmark: 6.0 },
+      { area: "doubles_per_round", value: 1.1, benchmark: 1.0 }, // below 1.3× → must NOT fire
+    ],
+  };
+
+  it("1. ranker determinism: identical inputs -> identical output", () => {
+    const a = rankPracticeSignals(RANKER_INPUT);
+    const b = rankPracticeSignals(RANKER_INPUT);
+    expect(a).toEqual(b);
+    // The sub-threshold weakness never produced a signal.
+    expect(a.some((s) => s.sourceSignal.includes("doubles_per_round"))).toBe(false);
+  });
+
+  it("2. ranker priority order: seeded > partial > high-lateralSD", () => {
+    const out = rankPracticeSignals({
+      clubDispersion: [
+        { club: "driver", confidence: "seeded", lateralSD: 10, carrySD: 20 },
+        { club: "7i", confidence: "partial", lateralSD: 8, carrySD: 7 },
+        { club: "9i", confidence: "measured", lateralSD: 18, carrySD: 5 },
+      ],
+      clubConfidence: [],
+      scoringWeaknesses: [],
+    });
+    // Distinct areas, so all three survive dedup in rule order.
+    expect(out).toHaveLength(3);
+    expect(out[0]!.sourceSignal).toBe("driver.confidence=seeded");
+    expect(out[1]!.sourceSignal).toBe("7i.confidence=partial");
+    expect(out[2]!.sourceSignal).toBe("9i.lateralSD=18");
+    // priority is 1-based and strictly increasing in that order.
+    expect(out[0]!.priority).toBeLessThan(out[1]!.priority);
+    expect(out[1]!.priority).toBeLessThan(out[2]!.priority);
+  });
+
+  it("3. no fabricated URLs: every drill resource_url is NULL or starts with https://", async () => {
+    // File-level guard (always runs): the seed never hardcodes an insecure URL.
+    const seed = read("services/api/src/migrations/006_drill_seed.sql");
+    expect(seed.includes("http://")).toBe(false);
+
+    // Authoritative guard against the live DB after migration (invariant #4).
+    if (!hasDb) return;
+    await runMigrations();
+    const pool = getPool();
+    const { rows } = await pool.query<{ resource_url: string | null }>(
+      "SELECT resource_url FROM drill",
+    );
+    expect(rows.length).toBeGreaterThanOrEqual(12);
+    for (const r of rows) {
+      if (r.resource_url !== null) {
+        expect(r.resource_url.startsWith("https://"), `bad drill URL: ${r.resource_url}`).toBe(true);
+      }
+    }
+  });
+
+  it("4. Layer-5 swap isolation: signals are in, the hole layer is out", () => {
+    const signals = rankPracticeSignals({
+      clubDispersion: [{ club: "driver", confidence: "partial", lateralSD: 16, carrySD: 20 }],
+      clubConfidence: [],
+      scoringWeaknesses: [{ area: "three_putt_pct", value: 10.2, benchmark: 6.0 }],
+    });
+    expect(signals.length).toBeGreaterThanOrEqual(2);
+
+    const block = buildPracticeCoachLayer(signals);
+    const prompt = assemblePracticePrompt(signals, "rain_man", [
+      {
+        area: "driver",
+        title: "Tee-bay sample: 12+ drivers",
+        description: "Hit at least 12 full drivers at one target.",
+        resource_url: null,
+        resource_kind: "drill",
+      },
+    ]);
+
+    // The ranked signal descriptions made it into the assembled prompt.
+    for (const s of signals) {
+      expect(prompt.includes(s.description), `prompt missing signal: ${s.description}`).toBe(true);
+    }
+
+    // The swapped-IN Layer 5 block carries NO hole/course vocabulary. (We check the
+    // block, not the whole prompt: Layer 1/3 legitimately contain words like
+    // "yardage" and "green" in the static rules and player profile.)
+    expect(/yardage/i.test(block)).toBe(false);
+    expect(/carry target/i.test(block)).toBe(false);
+    expect(/green/i.test(block)).toBe(false);
+
+    // The course/hole Layer 2 was genuinely swapped OUT of the full prompt.
+    expect(prompt.includes("## LAYER 2")).toBe(false);
+    expect(prompt.includes("Carry target:")).toBe(false);
+    expect(prompt.includes("Engine recommendation")).toBe(false);
+    expect(prompt.includes("## LAYER 5 — PRACTICE SIGNALS")).toBe(true);
+  });
+
+  it("5. coach endpoint key safety: the route never names the key or a NEXT_PUBLIC_ var", () => {
+    const route = read("apps/web/src/app/api/practice/coach/route.ts");
+    expect(route.includes("ANTHROPIC_API_KEY"), "coach route must not name the key").toBe(false);
+    expect(route.includes("NEXT_PUBLIC_"), "coach route must not use a NEXT_PUBLIC_ var").toBe(false);
   });
 });

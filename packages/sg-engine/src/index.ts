@@ -27,6 +27,10 @@ export { expectedStrokesFromLie } from "./sgBaseline";
 export { sampleDispersion } from "./sampler";
 export { classifyLandingZone } from "./classifier";
 export { computeExpectedStrokes } from "./expectedStrokes";
+
+// Phase 4.5 surface — the practice signal ranker (the coach's deterministic half).
+export { rankPracticeSignals } from "./practiceRanker";
+export type { PracticeSignal, RankerInput } from "./practiceRanker";
 export type { Lie } from "./sgBaseline";
 export type { DispersionSample } from "./sampler";
 export type { LandingLie } from "./classifier";

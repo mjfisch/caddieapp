@@ -78,6 +78,21 @@ export default function Home() {
         >
           Play a round →
         </Link>
+        <Link
+          href="/practice"
+          style={{
+            background: "transparent",
+            color: "var(--muted)",
+            border: "1px solid var(--line2)",
+            borderRadius: 10,
+            padding: "13px 22px",
+            fontSize: 15,
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          Practice →
+        </Link>
       </div>
 
       {/* Confidence legend — invariant #2 made visible from day one */}
