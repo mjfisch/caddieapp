@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAI Caddie — Practice Tab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070d18; --bg2:#0a1322;
+    --panel:#0e1828; --panel2:#13203550; --raise:#16243c;
+    --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.12);
+    --text:#e9eff8; --muted:#8093ad; --faint:#5d6e88;
+    --green:#5fd991; --green-dim:#2f7f57; --green-glow:rgba(95,217,145,.18);
+    --amber:#f1b24c; --amber-dim:#7a5a20;
+    --red:#f0726f;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --sans:'Hanken Grotesk',system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#04070e;font-family:var(--sans);color:var(--text);display:flex;justify-content:center;
+    min-height:100vh;padding:24px 0;-webkit-font-smoothing:antialiased}
+  .phone{width:404px;max-width:100vw;background:
+      radial-gradient(120% 60% at 80% -5%,rgba(95,217,145,.10),transparent 55%),
+      radial-gradient(90% 50% at -10% 0%,rgba(70,120,200,.10),transparent 50%),
+      linear-gradient(180deg,var(--bg),var(--bg2));
+    min-height:880px;position:relative;border-radius:34px;overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.05);display:flex;flex-direction:column}
+  /* status bar */
+  .status{display:flex;justify-content:space-between;align-items:center;padding:14px 22px 4px;font:600 13px var(--mono);color:var(--muted)}
+  .status .dots{display:flex;gap:4px;align-items:center}
+  .status .dots i{width:5px;height:5px;border-radius:50%;background:var(--faint);display:inline-block}
+  /* scroll area */
+  .screen{flex:1;overflow-y:auto;padding:6px 18px 120px}
+  .screen::-webkit-scrollbar{display:none}
+  /* header */
+  .head{display:flex;align-items:flex-end;justify-content:space-between;margin:10px 4px 18px}
+  .head h1{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .head h1 .sub{display:block;font:600 11px var(--mono);letter-spacing:.22em;color:var(--green);
+    text-transform:uppercase;margin-bottom:9px}
+  .cadence{text-align:right;font:500 12px var(--sans);color:var(--muted);line-height:1.45}
+  .cadence b{font:700 22px var(--mono);color:var(--text);display:block}
+  /* loop strip */
+  .loop{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:13px;padding:9px 12px;margin-bottom:20px;font:500 11px var(--sans);color:var(--muted)}
+  .loop .node{display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .loop .node b{color:var(--text);font-weight:600}
+  .loop .here{color:var(--green)}
+  .loop .arr{color:var(--faint);font-family:var(--mono)}
+  .loop svg{width:13px;height:13px;flex:none}
+  /* section label */
+  .lbl{font:600 11px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--faint);
+    margin:24px 6px 11px;display:flex;align-items:center;justify-content:space-between}
+  .lbl span.t{color:var(--green)}
+  /* coach card */
+  .coach{background:linear-gradient(160deg,#10203a,#0c1626);border:1px solid var(--line2);border-radius:20px;
+    padding:16px 16px 14px;position:relative;overflow:hidden}
+  .coach::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 80% at 100% 0,var(--green-glow),transparent 60%);pointer-events:none}
+  .coach .who{display:flex;align-items:center;gap:9px;margin-bottom:13px;position:relative}
+  .coach .who . av{width:30px;height:30px;border-radius:9px;background:#0a1320;border:1px solid var(--green-dim);
+    display:grid;place-items:center;font:700 12px var(--mono);color:var(--green)}
+  .coach .who .nm{font-weight:700;font-size:14px}
+  .coach .who .nm small{display:block;font:500 10px var(--mono);letter-spacing:.12em;color:var(--faint);text-transform:uppercase;margin-top:2px}
+  .coach .who .tag{margin-left:auto;font:600 10px var(--mono);color:var(--muted);border:1px solid var(--line);
+    padding:4px 8px;border-radius:20px;letter-spacing:.08em}
+  .rec{position:relative;border-top:1px solid var(--line);padding:13px 2px 4px}
+  .rec:first-of-type{border-top:none;padding-top:2px}
+  .rec .row1{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .rec .pri{font:700 10px var(--mono);padding:3px 7px;border-radius:6px;letter-spacing:.06em}
+  .pri.p1{background:rgba(240,114,111,.14);color:var(--red)}
+  .pri.p2{background:rgba(241,178,76,.14);color:var(--amber)}
+  .pri.p3{background:var(--green-glow);color:var(--green)}
+  .rec h3{font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .rec .why{font-size:12.5px;color:var(--muted);line-height:1.5;margin:2px 0 9px}
+  .rec .why b{color:#cdd9ea;font-weight:600}
+  .rec .drill{display:flex;align-items:center;gap:9px;background:#0a121f;border:1px solid var(--line);
+    border-radius:11px;padding:9px 11px}
+  .rec .drill .dico{width:26px;height:26px;border-radius:7px;background:var(--green-glow);display:grid;place-items:center;flex:none}
+  .rec .drill .dico svg{width:14px;height:14px;color:var(--green)}
+  .rec .drill .dtx{flex:1;min-width:0}
+  .rec .drill .dtx b{font-size:12.5px;font-weight:600;display:block}
+  .rec .drill .dtx a{font:500 11px var(--sans);color:var(--green);text-decoration:none}
+  .rec .drill .dtx a span{opacity:.6}
+  .rec .drill .go{font:600 11px var(--mono);color:var(--text);background:var(--raise);border:1px solid var(--line2);
+    padding:7px 10px;border-radius:9px;white-space:nowrap;cursor:pointer}
+  /* session type picker */
+  .types{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .type{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:13px;cursor:pointer;
+    transition:.18s;position:relative;text-align:left}
+  .type:hover{border-color:var(--line2)}
+  .type.on{border-color:var(--green-dim);background:linear-gradient(160deg,#10221a,#0c1422);box-shadow:0 0 0 1px var(--green-dim)}
+  .type .ti{width:32px;height:32px;border-radius:9px;background:#0a1320;display:grid;place-items:center;margin-bottom:9px}
+  .type.on .ti{background:var(--green-glow)}
+  .type .ti svg{width:17px;height:17px;color:var(--muted)}
+  .type.on .ti svg{color:var(--green)}
+  .type b{font-size:13.5px;font-weight:700;display:block}
+  .type small{font:500 10.5px var(--sans);color:var(--faint);line-height:1.4;display:block;margin-top:3px}
+  .type .feeds{position:absolute;top:11px;right:11px;font:600 8.5px var(--mono);letter-spacing:.05em;
+    padding:3px 6px;border-radius:5px;text-transform:uppercase}
+  .feeds.data{background:var(--green-glow);color:var(--green)}
+  .feeds.feel{background:rgba(255,255,255,.05);color:var(--faint)}
+  /* form */
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:15px;margin-top:11px}
+  .form .ftitle{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;margin-bottom:3px}
+  .form .ftitle .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+  .form .fnote{font-size:11.5px;color:var(--muted);line-height:1.45;margin-bottom:13px}
+  .form .fnote.feelonly{color:var(--amber)}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .fld label{font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .fld .inp{background:#0a121f;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font:500 13px var(--sans);
+    color:var(--text);display:flex;align-items:center;justify-content:space-between}
+  .fld .inp.ph{color:var(--faint)}
+  .fld .inp svg{width:13px;height:13px;color:var(--faint)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font:600 11.5px var(--sans);padding:7px 11px;border-radius:20px;border:1px solid var(--line);
+    background:#0a121f;color:var(--muted);cursor:pointer;transition:.15s}
+  .chip.on{background:var(--green-glow);border-color:var(--green-dim);color:var(--green)}
+  .full{grid-column:1/-1}
+  .recap{background:#0a121f;border:1px solid var(--line);border-radius:10px;padding:10px 11px;min-height:58px;
+    font:500 12.5px var(--sans);color:var(--muted);line-height:1.5}
+  .recap em{color:var(--faint);font-style:normal}
+  .import{display:flex;align-items:center;gap:10px;background:linear-gradient(120deg,#102a1e,#0c1a16);
+    border:1px solid var(--green-dim);border-radius:12px;padding:11px 12px;margin-top:12px}
+  .import .ii{width:30px;height:30px;border-radius:8px;background:var(--green-glow);display:grid;place-items:center;flex:none}
+  .import .ii svg{width:16px;height:16px;color:var(--green)}
+  .import .it{flex:1}
+  .import .it b{font-size:12.5px;font-weight:700;display:block}
+  .import .it small{font:500 11px var(--sans);color:var(--muted)}
+  .import .ib{font:700 11px var(--mono);background:var(--green);color:#05140c;border:none;padding:8px 12px;border-radius:9px;cursor:pointer}
+  .save{width:100%;margin-top:13px;background:var(--green);color:#05140c;border:none;border-radius:12px;
+    padding:13px;font:700 14px var(--sans);cursor:pointer;letter-spacing:-.01em}
+  /* confidence */
+  .conf{background:var(--panel);border:1px solid var(--line);border-radius:17px;overflow:hidden}
+  .conf .crow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line)}
+  .conf .crow:first-child{border-top:none}
+  .conf .club{font:700 14px var(--mono);width:42px;flex:none}
+  .conf .meta{flex:1;min-width:0}
+  .conf .meta .dc{display:inline-flex;align-items:center;gap:5px;font:600 9.5px var(--mono);letter-spacing:.06em;
+    text-transform:uppercase;padding:3px 7px;border-radius:5px}
+  .dc.measured{background:var(--green-glow);color:var(--green)}
+  .dc.partial{background:rgba(241,178,76,.14);color:var(--amber)}
+  .dc.seeded{background:rgba(255,255,255,.05);color:var(--faint)}
+  .conf .meta small{display:block;font:500 11px var(--sans);color:var(--faint);margin-top:5px}
+  .feel{display:flex;align-items:center;gap:3px}
+  .feel .bar{width:7px;height:18px;border-radius:2px;background:#1b2638;cursor:pointer;transition:.12s}
+  .feel .bar.fill{background:var(--green)}
+  .feel .bar.fill.lo{background:var(--red)}
+  .feel .bar.fill.mid{background:var(--amber)}
+  .feel .flab{font:600 9px var(--mono);color:var(--faint);text-transform:uppercase;letter-spacing:.1em;margin-left:6px;width:30px}
+  /* history */
+  .hist{display:flex;flex-direction:column;gap:8px}
+  .sess{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:12px 13px;cursor:pointer;transition:.15s}
+  .sess:hover{border-color:var(--line2)}
+  .sess .si{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none;background:#0a1320}
+  .sess .si svg{width:18px;height:18px;color:var(--muted)}
+  .sess.tk .si{background:var(--green-glow)} .sess.tk .si svg{color:var(--green)}
+  .sess .sm{flex:1;min-width:0}
+  .sess .sm .s1{display:flex;align-items:center;gap:7px}
+  .sess .sm b{font-size:13.5px;font-weight:700}
+  .sess .sm .typ{font:600 9px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
+    border:1px solid var(--line);padding:2px 6px;border-radius:5px}
+  .sess .sm .s2{font-size:11.5px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sess .date{text-align:right;font:600 10px var(--mono);color:var(--faint);flex:none;line-height:1.4}
+  .sess .date b{display:block;font-size:16px;color:var(--text)}
+  /* tab bar */
+  .tabs{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-around;
+    padding:9px 6px calc(9px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,rgba(7,13,24,.4),rgba(5,9,16,.96));backdrop-filter:blur(18px);
+    border-top:1px solid var(--line)}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:4px;font:600 9.5px var(--sans);color:var(--faint);
+    flex:1;cursor:pointer;padding:2px}
+  .tab svg{width:21px;height:21px}
+  .tab.on{color:var(--green)}
+  .tab.on .ti2{filter:drop-shadow(0 0 8px var(--green-glow))}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status">
+    <span>9:41</span>
+    <span class="head-title" style="letter-spacing:.18em;font-size:11px;color:var(--green)">GAI CADDIE</span>
+    <span class="dots"><i></i><i></i><i style="background:var(--green)"></i></span>
+  </div>
+
+  <div class="screen">
+    <div class="head">
+      <h1><span class="sub">Practice</span>Range &amp; reps</h1>
+      <div class="cadence">this week<b>1</b>of your 1–2 target</div>
+    </div>
+
+    <!-- the loop: practice is the input side -->
+    <div class="loop">
+      <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><b>Recap</b></span>
+      <span class="arr">→</span>
+      <span class="node here"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg><b style="color:var(--green)">Practice</b></span>
+      <span class="arr">→</span>
+      <span class="node"><b>Bag</b> data</span>
+      <span class="arr">→</span>
+      <span class="node">sharper <b>book</b></span>
+    </div>
+
+    <!-- AI COACH -->
+    <div class="lbl"><span>What to work on <span class="t">· AI</span></span><span style="color:var(--faint)">↻</span></div>
+    <div class="coach">
+      <div class="who">
+        <div class="av">RM</div>
+        <div class="nm">Rain Man<small>your caddie · flat &amp; factual</small></div>
+        <div class="tag">3 signals</div>
+      </div>
+
+      <div class="rec">
+        <div class="row1"><span class="pri p1">DATA GAP</span><h3>Re-map the driver</h3></div>
+        <p class="why">Driver dispersion is still <b>partial</b> — 2022 Foresight data. It's the one club the strategy engine is guessing on, and it sets every par-4/5 tee plan.</p>
+        <div class="drill">
+          <div class="dico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div>
+          <div class="dtx"><b>Trackman tee bay — 12+ drivers</b><a href="#">Why sample size matters for SD <span>· article</span></a></div>
+          <div class="go" onclick="pick('trackman')">Log it</div>
+        </div>
+      </div>
+
+      <div class="rec">
+        <div class="row1"><span class="pri p2">SCORING</span><h3>First-putt speed, 5 min before irons</h3></div>
+        <p class="why">3-putts ran <b>10.2%</b> last season (target ≤5%). Not a standalone session — roll 10 lag putts from 30‑ft <b>before</b> you pull an iron, while willpower's high.</p>
+        <div class="drill">
+          <div class="dico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <div class="dtx"><b>30-ft ladder → stop inside 3 ft</b><a href="#">Lag speed drill <span>· video</span></a></div>
+          <div class="go" onclick="pick('short')">Log it</div>
+        </div>
+      </div>
+
+      <div class="rec">
+        <div class="row1"><span class="pri p3">DISPERSION</span><h3>3h / 4i start-line check</h3></div>
+        <p class="why">Both still lean <b>right</b> across sessions. Worth confirming it's path vs face before the book keeps planning around it.</p>
+        <div class="drill">
+          <div class="dico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="3"/></svg></div>
+          <div class="dtx"><b>Gate drill, start-line stick</b><a href="#">Path vs face miss <span>· article</span></a></div>
+          <div class="go" onclick="pick('trackman')">Log it</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOG A SESSION -->
+    <div class="lbl">Log a session</div>
+    <div class="types">
+      <button class="type on" id="t-trackman" onclick="pick('trackman')">
+        <span class="feeds data">→ bag</span>
+        <div class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg></div>
+        <b>Trackman range</b><small>Map my bag · feeds dispersion</small>
+      </button>
+      <button class="type" id="t-grass" onclick="pick('grass')">
+        <span class="feeds feel">feel</span>
+        <div class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20s2-8 8-8 8 8 8 8"/><path d="M12 12V4M12 4c2 1 3 3 3 3M12 4c-2 1-3 3-3 3"/></svg></div>
+        <b>Grass range</b><small>Off turf · no LM data</small>
+      </button>
+      <button class="type" id="t-short" onclick="pick('short')">
+        <span class="feeds feel">feel</span>
+        <div class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3"/></svg></div>
+        <b>Short game</b><small>Chip · putt · bunker</small>
+      </button>
+      <button class="type" id="t-net" onclick="pick('net')">
+        <span class="feeds feel">feel</span>
+        <div class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18M3 13h18M3 18h18M8 3v18M13 3v18M18 3v18"/></svg></div>
+        <b>Spornia net</b><small>Home · swing thoughts</small>
+      </button>
+    </div>
+
+    <!-- DYNAMIC FORM -->
+    <div class="form" id="form"></div>
+
+    <!-- CLUB CONFIDENCE -->
+    <div class="lbl"><span>Club confidence</span><span style="color:var(--faint);font:500 10px var(--mono)">DATA · FEEL</span></div>
+    <div class="conf" id="conf"></div>
+
+    <!-- HISTORY -->
+    <div class="lbl">Recent sessions</div>
+    <div class="hist">
+      <div class="sess tk">
+        <div class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg></div>
+        <div class="sm"><div class="s1"><b>Oak Brook GC</b><span class="typ">Trackman</span></div>
+          <div class="s2">PW–7i · 24 shots · "PW flushed, mid-irons solid"</div></div>
+        <div class="date">Jun<b>3</b></div>
+      </div>
+      <div class="sess">
+        <div class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18M8 3v18M13 3v18"/></svg></div>
+        <div class="sm"><div class="s1"><b>Home net</b><span class="typ">Spornia</span></div>
+          <div class="s2">7i · grooving shallower takeaway · 40 reps</div></div>
+        <div class="date">May<b>28</b></div>
+      </div>
+      <div class="sess tk">
+        <div class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg></div>
+        <div class="sm"><div class="s1"><b>Skokie Sports Park</b><span class="typ">Trackman</span></div>
+          <div class="s2">3h/4i/5h + LW64 · 24 shots · "right-lean persists"</div></div>
+        <div class="date">May<b>18</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tabs">
+    <div class="tab"><svg class="ti2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>Plan</div>
+    <div class="tab"><svg class="ti2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2l1 4h10l1-4"/><path d="M5 6h14l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6z"/></svg>Bag</div>
+    <div class="tab"><svg class="ti2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></svg>Course</div>
+    <div class="tab"><svg class="ti2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"/></svg>Play</div>
+    <div class="tab"><svg class="ti2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>Recap</div>
+    <div class="tab on"><svg class="ti2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>Practice</div>
+  </div>
+</div>
+
+<script>
+  const FORMS = {
+    trackman:{
+      title:"Trackman range", dot:true,
+      note:"Structured shot data. Import your screenshots and this session updates per-club carry &amp; dispersion in your Bag.",
+      noteClass:"",
+      grid:[["Facility","Oak Brook GC",false],["Date","Jun 3, 2026",false],["Surface","Mat",false],["Ball","Range",false]],
+      chipsLabel:"Clubs hit", chips:["PW","9i","8i","7i","+ add"], chipsOn:["PW","9i","8i","7i"],
+      import:true,
+      recap:"<em>Feels, swing thoughts, confidence changes…</em>  e.g. \"PW flushed — ball speed up. Mid-irons matched May.\""
+    },
+    grass:{
+      title:"Grass range", dot:true,
+      note:"Off real turf — no launch monitor, so this is feel only. It won't move your dispersion numbers, but it's gold for trust and contact.",
+      noteClass:"feelonly",
+      grid:[["Location","",true],["Duration","45 min",false],["Surface","Grass",false],["Wind / cond.","",true]],
+      chipsLabel:"Worked on", chips:["Driver","Long irons","Wedges","Shot shaping","Trajectory"], chipsOn:["Wedges"],
+      import:false,
+      recap:"<em>Ball flight, contact, what felt repeatable…</em>"
+    },
+    short:{
+      title:"Short game", dot:true,
+      note:"Chipping, pitching, putting, bunker. Log a light metric if you took one — otherwise just the feel.",
+      noteClass:"",
+      grid:[["Location","",true],["Duration","30 min",false],["Lag: in 3 ft","7 / 10",false],["Up &amp; downs","",true]],
+      chipsLabel:"Area", chips:["Putting green","Chipping","Pitching","Bunker"], chipsOn:["Putting green"],
+      import:false,
+      recap:"<em>Speed, release, contact, distance control…</em>"
+    },
+    net:{
+      title:"Spornia net (home)", dot:true,
+      note:"The net stops the ball — no distance or dispersion possible. This is pure swing-thought &amp; maintenance work. Log the feel and the reps.",
+      noteClass:"feelonly",
+      grid:[["Club(s)","7i",false],["Reps","~40",false],["Duration","20 min",false],["Swing thought","",true]],
+      chipsLabel:"Working on", chips:["Takeaway","Tempo","Transition","Impact","Pre-shot routine"], chipsOn:["Takeaway"],
+      import:false,
+      recap:"<em>The feel you want to remember for next time…</em>"
+    }
+  };
+
+  function pick(type){
+    document.querySelectorAll('.type').forEach(e=>e.classList.remove('on'));
+    document.getElementById('t-'+type).classList.add('on');
+    const f=FORMS[type];
+    let gridHtml=f.grid.map(([lab,val,ph])=>`
+      <div class="fld"><label>${lab}</label>
+        <div class="inp ${ph?'ph':''}">${ph?'Tap to enter':val}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div></div>`).join('');
+    let chipHtml=f.chips.map((c,i)=>`<span class="chip ${f.chipsOn.includes(c)?'on':''}">${c}</span>`).join('');
+    let importHtml=f.import?`
+      <div class="import">
+        <div class="ii"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M12 8v8"/></svg></div>
+        <div class="it"><b>Import Trackman screenshots</b><small>Runs the Shot Logger → updates Bag</small></div>
+        <button class="ib">Import</button>
+      </div>`:'';
+    document.getElementById('form').innerHTML=`
+      <div class="ftitle">${f.dot?'<span class="dot"></span>':''}${f.title}</div>
+      <div class="fnote ${f.noteClass}">${f.note}</div>
+      <div class="fgrid">${gridHtml}</div>
+      <div style="margin-top:13px"><label style="font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:7px">${f.chipsLabel}</label><div class="chips">${chipHtml}</div></div>
+      ${importHtml}
+      <div style="margin-top:13px"><label style="font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:7px">Recap &amp; feels</label><div class="recap">${f.recap}</div></div>
+      <button class="save">Save session</button>`;
+    document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>c.classList.toggle('on'));
+  }
+
+  // confidence rows: [club, dataConf, feelLevel(0-4), note]
+  const CLUBS=[
+    ["Driver","partial",2,"2022 data — re-map to trust the tee plan"],
+    ["7i","measured",4,"Striped at Oak Brook"],
+    ["4i","measured",1,"Right-lean — low trust right now"],
+    ["PW","measured",4,"Flushed last session, speed up"],
+    ["3h","measured",2,"Right-miss pattern, watching it"]
+  ];
+  function renderConf(){
+    document.getElementById('conf').innerHTML=CLUBS.map((c,ci)=>{
+      const lvlClass=c[2]<=1?'lo':c[2]<=2?'mid':'';
+      let bars='';
+      for(let i=0;i<4;i++) bars+=`<div class="bar ${i<c[2]?'fill '+lvlClass:''}" onclick="setFeel(${ci},${i+1})"></div>`;
+      const flab=c[2]<=1?'LOW':c[2]<=2?'MED':'HIGH';
+      return `<div class="crow">
+        <div class="club">${c[0]}</div>
+        <div class="meta"><span class="dc ${c[1]}">${c[1]}</span><small>${c[3]}</small></div>
+        <div class="feel">${bars}<span class="flab">${flab}</span></div></div>`;
+    }).join('');
+  }
+  function setFeel(ci,lvl){ CLUBS[ci][2]=lvl; renderConf(); }
+
+  pick('trackman'); renderConf();
+</script>
+</body>
+</html>

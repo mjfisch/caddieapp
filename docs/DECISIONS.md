@@ -37,6 +37,22 @@ The original 002 seed loaded tee yardages into mis-named columns: the back (Blac
 - **Why a new migration, not an edited re-run.** Applied 002 migrations are recorded in `_migrations` and never re-run; re-running 002's non-idempotent `INSERT` would create a *duplicate* Fox Bend course. So live data was corrected by a new `004` migration with **explicit canonical values** (not a positional swap), scoped to Fox Bend and idempotent — a true no-op on a fresh DB seeded by the corrected `002`. Re-seeded against live Neon.
 - **Scope.** `001` (+column), `002` (correct insert), `004` (live fix), `strategy.ts` (reads `yardage_white`), hole page (shows Black/White/Gray). No engine/persona/math change (invariants #1/#6 untouched).
 
+## D12 — Practice tab is the feedback loop's input/output surface, not a standalone logger (RESOLVED, adopted — docs/practice-tab-spec.md)
+
+The Practice tab writes to dispersion (via the Shot Logger) and to club confidence; it reads from scoring (`round_hole`), dispersion, and the confidence flags; it reuses the Caddie assembler via a Layer-5 swap. It is not a siloed feature — it is the mechanism by which real practice data flows back into the SG engine and changes caddie recommendations. The spec (`docs/practice-tab-spec.md`) is now canonical; Phase 4.5 is the target build phase.
+
+## D13 — Two-confidence model: data confidence (`measured/partial/seeded`) vs feel confidence (1–4) (RESOLVED, adopted — docs/practice-tab-spec.md)
+
+Data confidence tracks the statistical quality of dispersion measurements (invariant #2, already locked). Feel confidence is a separate, per-club 1–4 subjective signal entered in the Practice tab that can nudge the strategy risk config — more aggressive when you're feeling it, more conservative when you're not. The two signals are stored and displayed separately; feel never overwrites the data confidence flag.
+
+## D14 — Practice coach reuses the 5-layer assembler via a Layer-5 swap (RESOLVED, adopted — docs/practice-tab-spec.md)
+
+The AI practice coach is not a second AI system. It uses the same `@gai/caddie-context` assembler as the on-course caddie, with Layer 5 (`live_input`) swapped out for a practice-session context block (ranked signals, session type, feel confidence). This means persona voice, player profile, and the Layer-1 accuracy rules all apply to coach output without duplication. See `docs/practice-tab-spec.md §4`.
+
+## D15 — Drill resource links come from a curated library or live `web_search` — never LLM-invented (RESOLVED, adopted — docs/practice-tab-spec.md)
+
+The practice coach must never fabricate a drill URL or attribute a drill to a source the model cannot verify. Links are sourced from a curated library of known-good resources OR from a real server-side `web_search` at generation time. This is the practice-domain expression of invariant #4 ("the LLM never invents a URL") and must be enforced the same way — in the server route, before the response streams to the client.
+
 ## D16 — Two design systems (RESOLVED v2.1, 2026-06-04)
 
 GAI Caddie product UI = the dark as-built tokens (this repo's `globals.css`). BTP brand = the agency's light marketing identity, never app chrome — only a "Built by Back Tee Partners" attribution. See Build Plan §10 D16 for the full entry.
