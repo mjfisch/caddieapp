@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -532,6 +532,11 @@ describe("Phase 4.5 — practice coach: deterministic ranking, Layer-5 swap, inv
 describe("Phase 5 — rounds: persistence, upsert idempotency, scoring weaknesses", () => {
   const hasDb = Boolean(process.env.DATABASE_URL);
 
+  // Track every fixture course so we can remove them after the suite. These tests
+  // run against the SAME Neon DB production reads, so a leaked fixture would show up
+  // in the live /courses + /play lists. Clean up so that can never happen.
+  const fixtureCourseIds: string[] = [];
+
   /** Insert a throwaway course so a test's rounds are isolated from real data. */
   async function makeCourse(name: string): Promise<string> {
     const pool = getPool();
@@ -539,8 +544,22 @@ describe("Phase 5 — rounds: persistence, upsert idempotency, scoring weaknesse
       "INSERT INTO course (name) VALUES ($1) RETURNING id",
       [name],
     );
-    return rows[0]!.id;
+    const id = rows[0]!.id;
+    fixtureCourseIds.push(id);
+    return id;
   }
+
+  // Remove the fixture courses (round rows cascade via the round.course_id FK), so
+  // no test data lingers in the shared DB. Belt-and-suspenders: also sweep any
+  // older 'Phase5 %' fixtures from prior runs that may have been left behind.
+  afterAll(async () => {
+    if (!hasDb) return;
+    const pool = getPool();
+    if (fixtureCourseIds.length > 0) {
+      await pool.query("DELETE FROM course WHERE id = ANY($1::uuid[])", [fixtureCourseIds]);
+    }
+    await pool.query("DELETE FROM course WHERE name LIKE 'Phase5 %'");
+  });
 
   it.skipIf(!hasDb)(
     "1. round creation round-trip: createRound writes a row; getRound reads it back with the right courseId + date",
