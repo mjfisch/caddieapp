@@ -15,6 +15,9 @@ export {
 export {
   parseHandicapSeed,
   seedDispersion,
+  promoteMeasuredByShotCount,
+  PROMOTE_MIN_SHOTS,
   type SeedRow,
   type SeedSummary,
+  type PromoteSummary,
 } from "./seedDispersion";

@@ -10,12 +10,22 @@ export const SG_ENGINE_VERSION = "0.0.0" as const;
 
 /**
  * Pure determinism probe. Same input -> same output, forever, zero side effects.
- * Phase 0 placeholder the invariants test exercises; real SG math lands in Phase 2.
+ * Phase 0 placeholder the invariants test exercises; the real SG math is predictHole.
  */
 export function deterministicProbe(seed: number): number {
   // Pure arithmetic only. No randomness, no clock, no I/O.
   return (seed * 2654435761) % 2 ** 32;
 }
 
-// Phase 2 surface (not yet implemented — signature reserved so callers can be typed):
-// export function predictHole(hole: Hole, dispersion: Dispersion, persona: Persona): HolePlan;
+// Phase 2B surface.
+export { predictHole } from "./engine";
+export { PERSONAS } from "./personas";
+export { normalQuantile, probExceed } from "./stats";
+export type {
+  ConfidenceFlag,
+  ClubDispersion,
+  HoleFeature,
+  HoleInput,
+  PersonaRiskConfig,
+  StrategyResult,
+} from "./types";

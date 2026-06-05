@@ -243,11 +243,20 @@ export async function insertShots(
  * SD uses the sample standard deviation (stddev_samp). lateral_sd is computed
  * only over non-null carry_side values; if a club has none, it keeps its prior
  * lateral_sd (or 0 for a brand-new row) so the NOT NULL column always holds.
+ *
+ * `minShots` is the threshold a club must reach to flip to `measured`; it
+ * defaults to MEASURED_MIN_SHOTS. The Phase 2B promote step passes a lower bar
+ * (see seedDispersion.promoteMeasuredByShotCount). It must be a positive integer
+ * because it is interpolated into the HAVING clause.
  */
 export async function recomputeDispersion(
   pool: Pool,
-  clubs?: string[]
+  clubs?: string[],
+  minShots: number = MEASURED_MIN_SHOTS
 ): Promise<DispersionResult[]> {
+  if (!Number.isInteger(minShots) || minShots < 1) {
+    throw new Error(`recomputeDispersion: minShots must be a positive integer, got ${minShots}`);
+  }
   const { rows } = await pool.query<{
     club: string;
     n: string;
@@ -263,7 +272,7 @@ export async function recomputeDispersion(
        FROM shot
       ${clubs && clubs.length ? "WHERE club = ANY($1)" : ""}
       GROUP BY club
-     HAVING count(*) >= ${MEASURED_MIN_SHOTS}`,
+     HAVING count(*) >= ${minShots}`,
     clubs && clubs.length ? [clubs] : []
   );
 

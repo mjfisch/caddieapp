@@ -11,6 +11,14 @@ Plain Postgres, no PostGIS (per D2/D9 — no live geometry). For a solo, DB-only
 - **Lock-in risk ≈ 0 by design.** No PostGIS, no provider extension. Plain Postgres on a connection string; `pg_dump | psql` moves to Supabase later if multi-user auth is ever pulled forward. That single scenario is the only thing that would flip this.
 - **Implementation note.** Phase 0 uses the standard `pg` driver (works against Neon's pooler *and* local Postgres — identical code path, verifiable locally). The `@neondatabase/serverless` driver is a one-line swap later if edge cold-starts warrant it; deferred to avoid premature optimization.
 
+## D-2B-1 — Measured threshold drops to 5 shots for this bag (RESOLVED, 2026-06-05, Phase 2B)
+
+The importer flips a club to `measured` at `MEASURED_MIN_SHOTS = 10` real shots. Michael's bag was logged in small sessions: every one of the 13 clubs has 5–12 real shots, but the 8 long-iron/hybrid/wedge clubs sit at 5–6 — below 10 — so they stayed `seeded` (tier-model estimates) while the engine was about to read them.
+
+- **Decision.** For the SG engine to read the whole bag with real dispersion, promote any club with **≥ 5 real shots** to `measured`. Implemented as `seedDispersion.promoteMeasuredByShotCount(pool, 5)`, which **recomputes** carry mean / carry SD / lateral SD from the `shot` table at that threshold — it does not relabel a seeded estimate. This keeps invariant #2 honest: a `measured` flag always means real measured numbers.
+- **Why not a flag-only `UPDATE`.** `club_dispersion.shot_count` is stale at 0 for the sub-10 clubs (recompute never wrote it), so a literal `WHERE shot_count >= 5` flips nothing, and flipping the flag without recomputing would label seeded estimates as measured — an invariant #2 violation.
+- **Scope.** This is a per-bag data-quality call for a single-player build, not a change to the importer's default (still 10). 5 shots is thin; revisit if multi-player data lands. Confidence still only ratchets up — a `measured` club is never downgraded.
+
 ## D16 — Two design systems (RESOLVED v2.1, 2026-06-04)
 
 GAI Caddie product UI = the dark as-built tokens (this repo's `globals.css`). BTP brand = the agency's light marketing identity, never app chrome — only a "Built by Back Tee Partners" attribution. See Build Plan §10 D16 for the full entry.
