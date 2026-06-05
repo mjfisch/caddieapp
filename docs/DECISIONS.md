@@ -28,6 +28,15 @@ The locked layer order in `@gai/shared` `CONTEXT_LAYERS` was renamed from the or
 - **Drift guard.** The invariant #5 test still asserts `LAYER_ORDER` deep-equals `CONTEXT_LAYERS`, so the two definitions cannot silently diverge. One existing test (`invariant #5`) was updated to the new vocabulary; all other tests carry forward untouched.
 - **Scope.** Naming only. No persona/risk-config change (invariant #6 untouched), no math change, no I/O added to `caddie-context`.
 
+## D-3B-1 — Fox Bend seed tee-column mismatch corrected (RESOLVED, 2026-06-05, Phase 3B)
+
+The original 002 seed loaded tee yardages into mis-named columns: the back (Black) tee landed in `yardage_white` and the actual White tee in `yardage_blue`. `strategy.ts` had to read `yardage_blue` as the White tee — a latent footgun.
+
+- **Decision.** Name-match the columns to tee colors. Added a `yardage_black` column (in `001` for fresh DBs; via `ALTER … IF NOT EXISTS` in `004` for already-seeded DBs). Mapping is now **Black→`yardage_black`, White→`yardage_white`, Gray→`yardage_red`**, and `yardage_blue` is NULL (Fox Bend has no Blue tee). Hole 3 White = 150 lives in `yardage_white`; the engine still returns 8i / 150 carry.
+- **Note on this entry.** The draft one-liner read "White tee yardage now in `yardage_blue`" — that was the pre-fix (broken) state, not the fix. The fix puts White in `yardage_white`; this entry records what was actually done.
+- **Why a new migration, not an edited re-run.** Applied 002 migrations are recorded in `_migrations` and never re-run; re-running 002's non-idempotent `INSERT` would create a *duplicate* Fox Bend course. So live data was corrected by a new `004` migration with **explicit canonical values** (not a positional swap), scoped to Fox Bend and idempotent — a true no-op on a fresh DB seeded by the corrected `002`. Re-seeded against live Neon.
+- **Scope.** `001` (+column), `002` (correct insert), `004` (live fix), `strategy.ts` (reads `yardage_white`), hole page (shows Black/White/Gray). No engine/persona/math change (invariants #1/#6 untouched).
+
 ## D16 — Two design systems (RESOLVED v2.1, 2026-06-04)
 
 GAI Caddie product UI = the dark as-built tokens (this repo's `globals.css`). BTP brand = the agency's light marketing identity, never app chrome — only a "Built by Back Tee Partners" attribution. See Build Plan §10 D16 for the full entry.

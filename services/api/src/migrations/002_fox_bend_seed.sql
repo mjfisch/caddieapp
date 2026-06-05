@@ -3,8 +3,10 @@
 -- Source: foxbendgolfcourse.com/course-tour/ (hole descriptions + diagrams)
 --         18birdies.com (full scorecard: par, handicap, black tee yardages)
 -- Tee sets: Black (6925), White (6525), Gray (6040), Maroon (5165)
--- Mapped to schema: yardage_black → yardage_blue, yardage_white → yardage_white,
---                   yardage_gray → yardage_red (closest to ladies/senior tee)
+-- Mapped to schema by tee color (D-3B-1, corrected Phase 3B):
+--   Black → yardage_black, White → yardage_white, Gray → yardage_red.
+--   Fox Bend has no Blue tee, so yardage_blue is NULL.
+-- (Maroon tee yardages not available hole-by-hole; total = 5165.)
 -- Rating/Slope (Men): Black 135/74 · White 128/71.2 · Gray 122/68.7 · Maroon 114/65.5
 -- Generated: 2026-06-04
 -- =============================================================
@@ -21,15 +23,14 @@ WITH new_course AS (
 
 -- ── HOLES ─────────────────────────────────────────────────────
 -- Columns: course_id, number, par, stroke_index,
---          yardage_white (Black tees), yardage_blue (White tees),
---          yardage_red (Gray tees), notes
+--          yardage_black (Black/back), yardage_white (White),
+--          yardage_blue (NULL — no Blue tee), yardage_red (Gray), notes
 -- Yardage source: 18Birdies scorecard (most current, 4-tee set)
--- yardage_white = Black (back), yardage_blue = White, yardage_red = Gray
--- Maroon tee yardages not available hole-by-hole; total = 5165
+-- Tee→column is name-matched (D-3B-1): Black→black, White→white, Gray→red.
 
 holes AS (
   INSERT INTO hole (id, course_id, number, par, stroke_index,
-                    yardage_white, yardage_blue, yardage_red, notes)
+                    yardage_black, yardage_white, yardage_blue, yardage_red, notes)
   SELECT
     gen_random_uuid(),
     new_course.id,
@@ -38,6 +39,7 @@ holes AS (
     h.stroke_index,
     h.yardage_black,
     h.yardage_white,
+    NULL,
     h.yardage_gray,
     h.notes
   FROM new_course,

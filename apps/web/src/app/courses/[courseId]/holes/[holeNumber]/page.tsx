@@ -12,6 +12,7 @@ interface HoleRow {
   number: number;
   par: number;
   stroke_index: number | null;
+  yardage_black: number | null;
   yardage_white: number | null;
   yardage_blue: number | null;
   yardage_red: number | null;
@@ -64,7 +65,7 @@ export default async function HolePage({
 
   const { rows: holes } = await pool.query<HoleRow>(
     `SELECT id, number, par, stroke_index,
-            yardage_white, yardage_blue, yardage_red, notes
+            yardage_black, yardage_white, yardage_blue, yardage_red, notes
        FROM hole
       WHERE course_id = $1 AND number = $2`,
     [courseId, number]
@@ -83,10 +84,12 @@ export default async function HolePage({
   const padded = String(hole.number).padStart(2, "0");
   const imageSrc = `/courses/${IMAGE_SLUG}/images/hole-${padded}.png`;
 
+  // Tee yardages, name-matched after D-3B-1. Fox Bend tees: Black / White / Gray
+  // (yardage_red holds Gray, the forward tee). yardage_blue is unused here.
   const yardages: { label: string; value: number | null }[] = [
+    { label: "Black", value: hole.yardage_black },
     { label: "White", value: hole.yardage_white },
-    { label: "Blue", value: hole.yardage_blue },
-    { label: "Red", value: hole.yardage_red },
+    { label: "Gray", value: hole.yardage_red },
   ];
 
   const prev = hole.number > 1 ? hole.number - 1 : null;

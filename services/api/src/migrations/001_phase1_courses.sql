@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS hole (
   number int NOT NULL,
   par int NOT NULL,
   stroke_index int,
+  -- Tee yardages, named by tee color. Back-to-front: black > white > blue > red.
+  -- A course need not use every tee (Fox Bend has no Blue tee → yardage_blue NULL).
+  -- yardage_black added Phase 3B (D-3B-1); live DBs get it via migration 004.
+  yardage_black int,
   yardage_white int,
   yardage_blue int,
   yardage_red int,

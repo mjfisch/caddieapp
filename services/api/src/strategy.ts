@@ -81,7 +81,7 @@ interface HoleRow {
   number: number;
   par: number;
   stroke_index: number | null;
-  yardage_blue: number | null;
+  yardage_white: number | null;
   course_name: string;
 }
 
@@ -105,13 +105,10 @@ async function loadHole(
   courseId: string,
   holeNumber: number,
 ): Promise<{ hole: HoleInput; courseName: string }> {
-  // Tee-column note: the Fox Bend seed (002_fox_bend_seed.sql) shifted the tee
-  // labels by one DB column — the *White* tee yardage lives in `yardage_blue`
-  // (the `yardage_white` column actually holds the Black/back tee). teeSet 'White'
-  // therefore reads yardage_blue, matching the committed Phase 2B/3A fixtures
-  // (Hole 3 White = 150). Do not "fix" this without re-seeding the table.
+  // teeSet 'White' → yardage_white, now name-matched to the tee color after the
+  // D-3B-1 column correction (migration 004). Hole 3 White = 150.
   const { rows } = await pool.query<HoleRow>(
-    `SELECT h.id, h.number, h.par, h.stroke_index, h.yardage_blue, c.name AS course_name
+    `SELECT h.id, h.number, h.par, h.stroke_index, h.yardage_white, c.name AS course_name
        FROM hole h
        JOIN course c ON c.id = h.course_id
       WHERE h.course_id = $1 AND h.number = $2`,
@@ -119,7 +116,7 @@ async function loadHole(
   );
   const row = rows[0];
   if (!row) throw new StrategyError(404, "hole not found");
-  if (row.yardage_blue == null) {
+  if (row.yardage_white == null) {
     throw new StrategyError(422, `hole ${holeNumber} has no White-tee yardage`);
   }
 
@@ -141,7 +138,7 @@ async function loadHole(
     number: row.number,
     par: row.par,
     strokeIndex: row.stroke_index ?? 0,
-    yardageWhite: Number(row.yardage_blue),
+    yardageWhite: Number(row.yardage_white),
     features,
   };
   return { hole, courseName: row.course_name };
