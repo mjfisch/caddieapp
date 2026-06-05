@@ -141,7 +141,7 @@ export default async function HolePage({
         <img
           src={imageSrc}
           alt={`Hole ${hole.number} satellite view`}
-          style={{ display: "block", width: "100%", height: "auto" }}
+          className="hole-image"
         />
       </div>
 
