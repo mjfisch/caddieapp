@@ -1086,3 +1086,103 @@ a:hover { text-decoration: underline; }
 }
 .pr-sess-date b { display: block; font-size: 16px; color: var(--text); }
 .pr-empty { color: var(--faint); font-size: 13px; }
+
+/* ── Bag tab (Mission 3a) — header + ALL CLUBS list ─────────────────────────
+   Display only: each row shows carry, the carry-confidence line, and the
+   measured lateral-SD dispersion banded Tight/Steady/Loose. Color = consistency
+   quality (invariant #2 keeps confidence on a SEPARATE axis: the date line, and
+   the muted ".is-est" treatment for any rating not backed by a measured sample). */
+.bag-page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 18px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.bag-header { display: flex; flex-direction: column; gap: 6px; }
+.bag-title {
+  margin: 2px 0 0;
+  font-size: 40px;
+  line-height: 1.0;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.bag-sub { margin: 0; font-size: 13px; color: var(--muted); }
+
+.bag-section-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 6px;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bag-section-label svg { color: var(--muted); }
+
+.bag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.bag-row {
+  display: grid;
+  grid-template-columns: 1fr auto minmax(118px, 1.05fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+}
+.bag-row:first-child { border-top: none; }
+
+.bag-row-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.bag-club { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.bag-carry-conf {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.bag-carry { display: flex; align-items: baseline; gap: 3px; justify-self: end; }
+.bag-carry-num { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+.bag-carry-unit { font-size: 11px; color: var(--muted); }
+
+.bag-disp { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bag-disp-head { display: flex; align-items: center; gap: 6px; }
+.bag-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.bag-disp-word { font-size: 13px; font-weight: 600; }
+.bag-disp-val {
+  margin-left: auto;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.bag-bar {
+  height: 4px;
+  border-radius: 3px;
+  background: var(--line2);
+  overflow: hidden;
+}
+.bag-bar-fill { display: block; height: 100%; border-radius: 3px; }
+
+/* Muted dispersion: a rating not backed by a measured sample reads as an
+   estimate — desaturated, never recolored. Confidence stays off the color axis. */
+.bag-disp.is-est { opacity: 0.5; }
+.bag-disp.is-est .bag-disp-val { color: var(--faint); }
+
+.bag-caption {
+  margin: 12px 2px 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
