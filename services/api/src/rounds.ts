@@ -263,6 +263,8 @@ export type RoundSummary = {
   totalPar: number;
   vsPar: number;
   holesPlayed: number;
+  /** Mission 2: a test round is kept in the list but muted from the weakness signal. */
+  isTest: boolean;
 };
 
 /** All rounds for a course, newest first, each with its total + score vs par. */
@@ -280,17 +282,19 @@ export async function listRounds(
     total_strokes: string | null;
     total_par: string | null;
     holes_played: string | null;
+    is_test: boolean;
   }>(
     `SELECT r.id,
             to_char(r.played_date, 'YYYY-MM-DD') AS played_date,
             SUM(rh.strokes)::int                  AS total_strokes,
             SUM(h.par)::int                        AS total_par,
-            COUNT(rh.id)::int                      AS holes_played
+            COUNT(rh.id)::int                      AS holes_played,
+            r.is_test
        FROM round r
        LEFT JOIN round_hole rh ON rh.round_id = r.id
        LEFT JOIN hole h ON h.course_id = r.course_id AND h.number = rh.hole_number
       WHERE r.course_id = $1
-      GROUP BY r.id, r.played_date, r.created_at
+      GROUP BY r.id, r.played_date, r.created_at, r.is_test
       ORDER BY r.played_date DESC, r.created_at DESC`,
     [courseId],
   );
@@ -304,8 +308,75 @@ export async function listRounds(
       totalPar,
       vsPar: totalStrokes - totalPar,
       holesPlayed: Number(r.holes_played ?? 0),
+      isTest: r.is_test === true,
     };
   });
+}
+
+// ── Delete + mark-as-test (Mission 2) ───────────────────────────────────────────
+
+/** A uuid the DB will accept; anything else is treated as "not found" (idempotent). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Delete a round and (via ON DELETE CASCADE on round_hole.round_id) all its holes.
+ * Idempotent: deleting a missing — or malformed — id is a no-op that succeeds.
+ * Returns whether a row was actually removed so the caller can report it.
+ */
+export async function deleteRound(
+  roundId: string,
+  deps: RoundDeps = {},
+): Promise<{ deleted: boolean }> {
+  if (typeof roundId !== "string" || roundId.trim() === "") {
+    throw new RoundError(400, "roundId is required");
+  }
+  // A non-uuid can never match a row; report no-op rather than letting Postgres
+  // throw `invalid input syntax for type uuid`. Keeps delete idempotent.
+  if (!UUID_RE.test(roundId.trim())) return { deleted: false };
+
+  const pool = deps.pool ?? getPool();
+  try {
+    const { rowCount } = await pool.query("DELETE FROM round WHERE id = $1", [roundId.trim()]);
+    return { deleted: (rowCount ?? 0) > 0 };
+  } catch (err) {
+    throw new RoundError(
+      500,
+      `could not delete round: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
+/**
+ * Flag (or un-flag) a round as a test round. A test round stays in the list and
+ * recap but is excluded from computeScoringWeaknesses (D-5-1). Idempotent; a
+ * missing/malformed id is a no-op success.
+ */
+export async function markRoundTest(
+  roundId: string,
+  isTest: boolean,
+  deps: RoundDeps = {},
+): Promise<{ updated: boolean }> {
+  if (typeof roundId !== "string" || roundId.trim() === "") {
+    throw new RoundError(400, "roundId is required");
+  }
+  if (typeof isTest !== "boolean") {
+    throw new RoundError(400, "isTest must be a boolean");
+  }
+  if (!UUID_RE.test(roundId.trim())) return { updated: false };
+
+  const pool = deps.pool ?? getPool();
+  try {
+    const { rowCount } = await pool.query(
+      "UPDATE round SET is_test = $2 WHERE id = $1",
+      [roundId.trim(), isTest],
+    );
+    return { updated: (rowCount ?? 0) > 0 };
+  } catch (err) {
+    throw new RoundError(
+      500,
+      `could not update round: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
 // ── Stats + weaknesses (invariant #1: every number is computed here, in code) ───
@@ -385,11 +456,15 @@ export async function computeScoringWeaknesses(
 ): Promise<ScoringWeakness[]> {
   const pool = deps.pool ?? getPool();
   const params: unknown[] = [];
-  let courseFilter = "";
+  // D-5-1: test rounds are real data we keep, but they must never pollute the
+  // scoring-weakness signal. Always exclude them; layer the optional course scope
+  // on top (the test uses courseId for a deterministic, isolated fixture).
+  const conditions = ["r.is_test = false"];
   if (opts.courseId) {
     params.push(opts.courseId);
-    courseFilter = "WHERE r.course_id = $1";
+    conditions.push(`r.course_id = $${params.length}`);
   }
+  const courseFilter = `WHERE ${conditions.join(" AND ")}`;
 
   const { rows } = await pool.query<{
     total_holes: string;

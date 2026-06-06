@@ -167,6 +167,9 @@ export default function PracticePage() {
   const [clubs, setClubs] = useState<ClubConf[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Default date to today on the client (avoids a hydration mismatch).
   useEffect(() => {
@@ -366,6 +369,29 @@ export default function PracticePage() {
       setSaveError(err instanceof Error ? err.message : "Network error.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // ── Session: delete (cascades focus + metrics server-side) ──
+  // Practice sessions never touch localStorage (they POST straight to Neon), so a
+  // delete is just the server call + an immediate list update — no reconciliation.
+  async function deleteSession(id: string) {
+    setDeletingId(id);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/practice/sessions/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { error?: string } | null;
+        setDeleteError(j?.error ?? "Could not delete the session.");
+        return;
+      }
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      setConfirmDelete(null);
+      if (expanded === id) setExpanded(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Network error.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -751,41 +777,78 @@ export default function PracticePage() {
 
       {/* E — session history */}
       <div className="pr-label">Recent sessions</div>
+      {deleteError && <p className="pr-err">{deleteError}</p>}
       <div className="pr-hist">
         {sessions.length === 0 && <p className="pr-empty">No sessions logged yet.</p>}
         {sessions.map((s) => {
           const open = expanded === s.id;
+          const confirming = confirmDelete === s.id;
+          const busy = deletingId === s.id;
           const recapFull = s.recap_md ?? "";
           const recapClip = recapFull.length > 100 ? `${recapFull.slice(0, 100)}…` : recapFull;
           return (
-            <button
-              key={s.id}
-              type="button"
-              className="pr-sess"
-              onClick={() => setExpanded(open ? null : s.id)}
-            >
-              <div className="pr-sess-main">
-                <div className="pr-sess-row1">
-                  <b>{s.location || TYPE_LABEL[s.type] || s.type}</b>
-                  <span className="pr-sess-typ">{TYPE_LABEL[s.type] ?? s.type}</span>
-                  {s.duration_min != null && (
-                    <span className="pr-sess-typ">{s.duration_min}m</span>
-                  )}
-                  {s.overall_rating != null && (
-                    <span className="pr-sess-stars">{"★".repeat(s.overall_rating)}</span>
-                  )}
+            <div key={s.id} className="pr-sess">
+              <div className="pr-sess-head">
+                <button
+                  type="button"
+                  className="pr-sess-toggle"
+                  onClick={() => setExpanded(open ? null : s.id)}
+                  aria-expanded={open}
+                >
+                  <div className="pr-sess-main">
+                    <div className="pr-sess-row1">
+                      <b>{s.location || TYPE_LABEL[s.type] || s.type}</b>
+                      <span className="pr-sess-typ">{TYPE_LABEL[s.type] ?? s.type}</span>
+                      {s.duration_min != null && (
+                        <span className="pr-sess-typ">{s.duration_min}m</span>
+                      )}
+                      {s.overall_rating != null && (
+                        <span className="pr-sess-stars">{"★".repeat(s.overall_rating)}</span>
+                      )}
+                    </div>
+                    {s.focusAreas.length > 0 && (
+                      <div className="pr-sess-sub">{s.focusAreas.join(" · ")}</div>
+                    )}
+                    {recapFull && (
+                      <div className={`pr-sess-sub${open ? "" : " clip"}`}>{open ? recapFull : recapClip}</div>
+                    )}
+                  </div>
+                  <div className="pr-sess-date">{formatDate(s.date)}</div>
+                </button>
+                <button
+                  type="button"
+                  className="pr-sess-del mono"
+                  onClick={() => setConfirmDelete(confirming ? null : s.id)}
+                  disabled={busy}
+                  aria-label="Delete session"
+                >
+                  Delete
+                </button>
+              </div>
+              {confirming && (
+                <div className="pr-sess-confirm">
+                  <span className="pr-sess-confirm-tx">Delete this session permanently?</span>
+                  <div className="pr-sess-confirm-btns">
+                    <button
+                      type="button"
+                      className="pr-sess-confirm-no mono"
+                      onClick={() => setConfirmDelete(null)}
+                      disabled={busy}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="pr-sess-confirm-yes mono"
+                      onClick={() => deleteSession(s.id)}
+                      disabled={busy}
+                    >
+                      {busy ? "Deleting…" : "Delete"}
+                    </button>
+                  </div>
                 </div>
-                {s.focusAreas.length > 0 && (
-                  <div className="pr-sess-sub">{s.focusAreas.join(" · ")}</div>
-                )}
-                {recapFull && (
-                  <div className={`pr-sess-sub${open ? "" : " clip"}`}>{open ? recapFull : recapClip}</div>
-                )}
-              </div>
-              <div className="pr-sess-date">
-                {formatDate(s.date)}
-              </div>
-            </button>
+              )}
+            </div>
           );
         })}
       </div>

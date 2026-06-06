@@ -612,6 +612,49 @@ a:hover { text-decoration: underline; }
 .mb-past-date { font-size: 13px; color: var(--text); }
 .mb-past-strokes { font-size: 13px; color: var(--muted); }
 .mb-past-vspar { font-size: 14px; font-weight: 700; }
+
+/* Mission 2 — per-round delete + mark-as-test */
+.mb-past-item {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  overflow: hidden;
+}
+.mb-past-item .mb-past-row {
+  background: none; border: none; border-radius: 0; padding: 0 14px 0 0;
+  display: flex; align-items: center; gap: 10px;
+}
+.mb-past-link {
+  display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 12px;
+  flex: 1; min-width: 0; padding: 12px 0 12px 14px; color: var(--text);
+}
+.mb-past-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.mb-past-test {
+  font-size: 11px; padding: 5px 9px; border-radius: 7px;
+  background: transparent; border: 1px solid var(--line); color: var(--muted); cursor: pointer;
+}
+.mb-past-test.on { color: var(--amber); border-color: var(--amber); }
+.mb-past-testtag { font-size: 10px; letter-spacing: 0.08em; color: var(--amber); }
+.mb-past-del {
+  font-size: 11px; padding: 5px 9px; border-radius: 7px;
+  background: transparent; border: 1px solid var(--line); color: var(--red); cursor: pointer;
+}
+.mb-past-del:hover { border-color: var(--red); }
+.mb-past-del:disabled, .mb-past-test:disabled { opacity: 0.5; cursor: default; }
+.mb-past-confirm {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; border-top: 1px solid var(--line); background: rgba(240, 114, 111, 0.07);
+}
+.mb-past-confirm-tx { font-size: 12.5px; color: var(--text); }
+.mb-past-confirm-btns { display: flex; gap: 6px; flex: none; }
+.mb-past-confirm-no {
+  font-size: 12px; padding: 6px 12px; border-radius: 7px;
+  background: transparent; border: 1px solid var(--line); color: var(--muted); cursor: pointer;
+}
+.mb-past-confirm-yes {
+  font-size: 12px; padding: 6px 12px; border-radius: 7px;
+  background: var(--red); border: 1px solid var(--red); color: var(--bg); font-weight: 600; cursor: pointer;
+}
+.mb-past-confirm-yes:disabled { opacity: 0.6; cursor: default; }
+.mb-past-err { font-size: 12.5px; color: var(--red); margin: 0; }
 .mb-start-btn {
   min-height: 48px;
   display: inline-flex;
@@ -997,10 +1040,36 @@ a:hover { text-decoration: underline; }
 /* Session history. */
 .pr-hist { display: flex; flex-direction: column; gap: 8px; }
 .pr-sess {
-  width: 100%; text-align: left; cursor: pointer; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 13px; padding: 12px 14px; color: var(--text);
-  display: flex; align-items: center; gap: 12px;
+  width: 100%; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 13px; color: var(--text); overflow: hidden;
 }
+.pr-sess-head { display: flex; align-items: stretch; gap: 0; }
+.pr-sess-toggle {
+  flex: 1; min-width: 0; text-align: left; cursor: pointer; background: none; border: none;
+  color: inherit; padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+}
+.pr-sess-del {
+  flex: none; align-self: center; margin-right: 12px; cursor: pointer;
+  font-size: 11px; padding: 6px 10px; border-radius: 7px;
+  background: transparent; border: 1px solid var(--line); color: var(--red);
+}
+.pr-sess-del:hover { border-color: var(--red); }
+.pr-sess-del:disabled { opacity: 0.5; cursor: default; }
+.pr-sess-confirm {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; border-top: 1px solid var(--line); background: rgba(240, 114, 111, 0.07);
+}
+.pr-sess-confirm-tx { font-size: 12.5px; color: var(--text); }
+.pr-sess-confirm-btns { display: flex; gap: 6px; flex: none; }
+.pr-sess-confirm-no {
+  font-size: 12px; padding: 6px 12px; border-radius: 7px;
+  background: transparent; border: 1px solid var(--line); color: var(--muted); cursor: pointer;
+}
+.pr-sess-confirm-yes {
+  font-size: 12px; padding: 6px 12px; border-radius: 7px;
+  background: var(--red); border: 1px solid var(--red); color: var(--bg); font-weight: 600; cursor: pointer;
+}
+.pr-sess-confirm-yes:disabled { opacity: 0.6; cursor: default; }
 .pr-sess-main { flex: 1; min-width: 0; }
 .pr-sess-row1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pr-sess-row1 b { font-size: 14px; font-weight: 700; }

@@ -34,6 +34,7 @@ export {
 export {
   createPracticeSession,
   listPracticeSessions,
+  deletePracticeSession,
   getClubConfidence,
   upsertClubConfidence,
   runPracticeCoachStream,
@@ -53,6 +54,8 @@ export {
   upsertRoundHole,
   getRound,
   listRounds,
+  deleteRound,
+  markRoundTest,
   summarizeRound,
   computeScoringWeaknesses,
   runRoundRecapStream,

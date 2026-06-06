@@ -225,6 +225,35 @@ export async function listPracticeSessions(
   }));
 }
 
+/** A uuid the DB will accept; anything else is treated as "not found" (idempotent). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Delete a practice session and (via ON DELETE CASCADE on practice_focus and
+ * practice_metric) all its child rows. Idempotent: a missing — or malformed — id
+ * is a no-op that succeeds. Returns whether a row was actually removed.
+ */
+export async function deletePracticeSession(
+  id: string,
+  deps: PracticeDeps = {},
+): Promise<{ deleted: boolean }> {
+  if (typeof id !== "string" || id.trim() === "") {
+    throw new PracticeError(400, "id is required");
+  }
+  if (!UUID_RE.test(id.trim())) return { deleted: false };
+
+  const pool = deps.pool ?? getPool();
+  try {
+    const { rowCount } = await pool.query("DELETE FROM practice_session WHERE id = $1", [id.trim()]);
+    return { deleted: (rowCount ?? 0) > 0 };
+  } catch (err) {
+    throw new PracticeError(
+      500,
+      `could not delete practice session: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
 // ── Dual confidence ─────────────────────────────────────────────────────────
 
 export type ClubConfidenceView = {
