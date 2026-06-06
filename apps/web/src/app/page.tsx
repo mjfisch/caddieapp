@@ -21,99 +21,102 @@ function DispersionMark({ size = 40 }: { size?: number }) {
   );
 }
 
+const ARROW = (
+  <svg className="lp-card-arr" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
+
+// Entry icons — stroke glyphs (currentColor), matching the bottom-nav set.
+function EntryIcon({ kind }: { kind: "book" | "flag" | "target" }) {
+  const c = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  if (kind === "book")
+    return (
+      <svg {...c}>
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z" />
+        <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5Z" />
+      </svg>
+    );
+  if (kind === "flag")
+    return (
+      <svg {...c}>
+        <path d="M6 21V3" />
+        <path d="M6 4h11l-3 3.5L17 11H6" />
+      </svg>
+    );
+  return (
+    <svg {...c}>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+const ENTRIES: {
+  href: string;
+  title: string;
+  sub: string;
+  icon: "book" | "flag" | "target";
+  primary?: boolean;
+}[] = [
+  { href: "/courses", title: "Open the yardage book", sub: "Prep & strategy, hole by hole", icon: "book", primary: true },
+  { href: "/play", title: "Play a round", sub: "On-course, glance-and-go", icon: "flag" },
+  { href: "/practice", title: "Practice", sub: "Log sessions, get a coach plan", icon: "target" },
+];
+
 export default function Home() {
   return (
-    <main
-      style={{
-        minHeight: "100dvh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 40,
-        padding: 24,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <DispersionMark size={44} />
-        <span style={{ fontSize: 30, fontWeight: 500, letterSpacing: "-0.01em" }}>GAI Caddie</span>
-      </div>
+    <main className="lp-page">
+      {/* Top app-bar — brand left, handicap right. */}
+      <header className="lp-topbar">
+        <div className="lp-brand">
+          <span className="lp-logo">
+            <DispersionMark size={22} />
+          </span>
+          <span className="lp-brand-text">
+            <strong>GAI Caddie</strong>
+            <small>by Back Tee Partners</small>
+          </span>
+        </div>
+        <span className="lp-hcp mono">
+          <em>HCP</em> 2.1
+        </span>
+      </header>
 
-      <p
-        className="serif"
-        style={{ margin: 0, fontSize: 22, color: "var(--muted)", textAlign: "center", maxWidth: 440 }}
-      >
-        The strokes-gained engine, in your pocket.
-      </p>
+      {/* Hero — mono eyebrow + serif display line (existing copy). */}
+      <section className="lp-hero">
+        <span className="lp-eyebrow">Strokes-gained caddie</span>
+        <h1 className="lp-title serif">The strokes-gained engine, in your pocket.</h1>
+      </section>
 
-      {/* Entry points: primary = prep/yardage book, secondary = on-course play */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-        <Link
-          href="/courses"
-          style={{
-            background: "var(--green)",
-            color: "var(--bg)",
-            border: "none",
-            borderRadius: 10,
-            padding: "13px 22px",
-            fontSize: 15,
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
-        >
-          Open the yardage book →
-        </Link>
-        <Link
-          href="/play"
-          style={{
-            background: "transparent",
-            color: "var(--green)",
-            border: "1px solid var(--green)",
-            borderRadius: 10,
-            padding: "13px 22px",
-            fontSize: 15,
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
-        >
-          Play a round →
-        </Link>
-        <Link
-          href="/practice"
-          style={{
-            background: "transparent",
-            color: "var(--muted)",
-            border: "1px solid var(--line2)",
-            borderRadius: 10,
-            padding: "13px 22px",
-            fontSize: 15,
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
-        >
-          Practice →
-        </Link>
-      </div>
+      {/* Entry points: primary = prep/yardage book, then on-course play, then practice. */}
+      <nav className="lp-entries" aria-label="Get started">
+        {ENTRIES.map((e) => (
+          <Link key={e.href} href={e.href} className={e.primary ? "lp-card primary" : "lp-card"}>
+            <span className="lp-card-ic">
+              <EntryIcon kind={e.icon} />
+            </span>
+            <span className="lp-card-tx">
+              <b>{e.title}</b>
+              <small>{e.sub}</small>
+            </span>
+            {ARROW}
+          </Link>
+        ))}
+      </nav>
 
-      {/* Confidence legend — invariant #2 made visible from day one */}
-      <div style={{ display: "flex", gap: 18 }}>
+      {/* Confidence legend — invariant #2 made visible from day one. */}
+      <div className="lp-legend">
         {FLAGS.map(({ flag, label }) => (
-          <div key={flag} className="mono" style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12 }}>
-            <span
-              style={{
-                width: 9,
-                height: 9,
-                borderRadius: "50%",
-                background: CONFIDENCE_COLOR[flag],
-                display: "inline-block",
-              }}
-            />
-            <span style={{ color: "var(--muted)" }}>{label}</span>
+          <div key={flag} className="lp-legend-item">
+            <span className="lp-legend-dot" style={{ background: CONFIDENCE_COLOR[flag] }} />
+            <span>{label}</span>
           </div>
         ))}
       </div>
 
-      <footer style={{ fontSize: 12, color: "var(--faint)" }}>Built by Back Tee Partners</footer>
+      <footer className="lp-footer">Built by Back Tee Partners</footer>
     </main>
   );
 }

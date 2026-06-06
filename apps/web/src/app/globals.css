@@ -41,6 +41,9 @@ body {
   background:
     radial-gradient(1200px 600px at 50% -10%, rgba(95, 217, 145, 0.05), transparent 60%),
     var(--bg);
+  /* Reserve space for the fixed bottom tab bar (height + iOS safe area) so no
+     page's content can hide behind it. */
+  padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
 
 code, .mono { font-family: var(--font-mono), ui-monospace, monospace; }
@@ -48,6 +51,167 @@ code, .mono { font-family: var(--font-mono), ui-monospace, monospace; }
 
 a { color: var(--green); text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+/* ── Persistent bottom tab bar (Mission 1) ──────────────────────────────────
+   4 tabs, fixed above content, active tab = green. The body reserves matching
+   bottom padding above; the bar adds the iOS safe-area inset on top of that. */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: rgba(7, 13, 24, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line2);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabbar .tab {
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.tabbar .tab:hover { text-decoration: none; color: var(--text); }
+.tabbar .tab.active { color: var(--green); }
+.tabbar .tab svg { display: block; }
+.tab-label { line-height: 1; }
+
+/* ── Landing page (/) — premium dark hero, above the tab bar ─────────────────
+   Top app-bar (logo + HCP), mono eyebrow, serif display line, entry cards,
+   confidence legend. Sized to the viewport minus the tab bar so it never scrolls. */
+.lp-page {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+  padding: 14px 18px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.lp-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 6px;
+}
+.lp-brand { display: flex; align-items: center; gap: 10px; }
+.lp-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line2);
+}
+.lp-brand-text { display: flex; flex-direction: column; line-height: 1.18; }
+.lp-brand-text strong { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.lp-brand-text small { font-size: 11px; color: var(--muted); }
+.lp-hcp {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  padding: 7px 13px;
+}
+.lp-hcp em { font-style: normal; font-size: 10px; letter-spacing: 0.1em; color: var(--faint); }
+
+.lp-hero { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.lp-eyebrow {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+.lp-title {
+  margin: 0;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 40px;
+  line-height: 1.05;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.lp-entries { display: flex; flex-direction: column; gap: 12px; }
+.lp-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  color: var(--text);
+  text-decoration: none;
+}
+.lp-card:hover { text-decoration: none; border-color: var(--line2); }
+.lp-card.primary {
+  border-color: rgba(95, 217, 145, 0.4);
+  background: linear-gradient(160deg, #10221a, var(--panel));
+}
+.lp-card-ic {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  color: var(--green);
+}
+.lp-card-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lp-card-tx b { font-size: 16px; font-weight: 600; }
+.lp-card-tx small { font-size: 12.5px; color: var(--muted); }
+.lp-card-arr { flex: none; color: var(--faint); }
+
+.lp-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 2px; }
+.lp-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+.lp-legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.lp-footer { margin-top: auto; font-size: 12px; color: var(--faint); }
+
+/* ── Generic stub screen (e.g. /bag this mission) ───────────────────────────── */
+.stub-page {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+}
+.stub-title { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+.stub-sub { margin: 0; max-width: 380px; font-size: 14px; line-height: 1.55; color: var(--muted); }
 
 /* Satellite hole image: full width, cropped via object-fit, capped height.
    320px on desktop, 240px on mobile (no Tailwind in this project — utility
