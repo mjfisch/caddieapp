@@ -2,14 +2,11 @@ import { getBagClubs, getClubShotCounts, runMigrations } from "@gai/api";
 import {
   type BagClubView,
   buildCarryMap,
-  clubDisplayName,
-  carryConfidenceLine,
-  dispersionBand,
-  isDispersionEstimated,
   latestSession,
   shotDataProgress,
   SHOT_TARGET,
 } from "./bagView";
+import { ClubRow } from "./ClubRow";
 
 // DB-backed, server-only (mirrors /play). pg needs the Node runtime; the data is
 // live, so never statically cache. INVARIANT #3: this reads @gai/api on the
@@ -34,10 +31,6 @@ export const dynamic = "force-dynamic";
 //      future club is seeded. Worth deciding whether to add the field.
 //   3. The driver reads `measured` (n=10) off a STALE 2022 sample; per the chosen
 //      call we trust the flag and let its visible last-session date tell the truth.
-
-function ConfidenceDot({ color }: { color: string }) {
-  return <span className="bag-dot" style={{ background: color }} aria-hidden />;
-}
 
 // ── Mission 3b — data-quality insight cards (both amber: action/goal) ───────────
 
@@ -117,42 +110,6 @@ function CarryMap({ clubs }: { clubs: BagClubView[] }) {
         ))}
       </svg>
     </div>
-  );
-}
-
-function ClubRow({ c }: { c: BagClubView }) {
-  const band = dispersionBand(c.lateralSdYards);
-  const estimated = isDispersionEstimated(c);
-  return (
-    <li className="bag-row">
-      <div className="bag-row-id">
-        <span className="bag-club">{clubDisplayName(c.club)}</span>
-        <span className="bag-carry-conf">{carryConfidenceLine(c)}</span>
-      </div>
-
-      <div className="bag-carry">
-        <span className="bag-carry-num">{c.carryYards}</span>
-        <span className="bag-carry-unit">yd</span>
-      </div>
-
-      <div className={estimated ? "bag-disp is-est" : "bag-disp"}>
-        <div className="bag-disp-head">
-          <ConfidenceDot color={band.color} />
-          <span className="bag-disp-word" style={{ color: band.color }}>
-            {band.word}
-          </span>
-          <span className="bag-disp-val">
-            ±{c.lateralSdYards} yd{estimated ? " est." : ""}
-          </span>
-        </div>
-        <div className="bag-bar">
-          <span
-            className="bag-bar-fill"
-            style={{ width: `${Math.round(band.fill * 100)}%`, background: band.color }}
-          />
-        </div>
-      </div>
-    </li>
   );
 }
 
