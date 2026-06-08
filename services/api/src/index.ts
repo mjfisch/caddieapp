@@ -31,7 +31,7 @@ export {
   type SeedSummary,
   type PromoteSummary,
 } from "./seedDispersion";
-export { getBagClubs, type BagClub } from "./bag";
+export { getBagClubs, getClubShotCounts, type BagClub } from "./bag";
 export {
   createPracticeSession,
   listPracticeSessions,

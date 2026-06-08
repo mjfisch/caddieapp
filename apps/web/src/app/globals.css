@@ -1186,3 +1186,59 @@ a:hover { text-decoration: underline; }
   color: var(--muted);
   line-height: 1.5;
 }
+
+/* ── Bag tab (Mission 3b) — data-quality insight cards + carry/consistency map ──
+   Cards: elevated card, left amber icon, bold title, muted body — both amber
+   (action/goal). Map: an SVG consistency-RATING plot (NOT a true shot pattern);
+   ellipse color + size = the Tight/Steady/Loose band, x = carry, seeded/partial
+   clubs muted (dual confidence carried over from the list). */
+.bag-cards { display: flex; flex-direction: column; gap: 12px; }
+.bag-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: var(--raise);
+  border: 1px solid var(--line2);
+}
+.bag-card-amber {
+  border-color: rgba(241, 178, 76, 0.35);
+  background: linear-gradient(160deg, rgba(241, 178, 76, 0.08), var(--raise));
+}
+.bag-card-ic {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--amber);
+  background: rgba(241, 178, 76, 0.14);
+  border: 1px solid rgba(241, 178, 76, 0.3);
+}
+.bag-card-tx { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bag-card-tx b { font-size: 14.5px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+.bag-card-tx p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+
+.bag-map-section { display: flex; flex-direction: column; gap: 0; }
+.bag-map-wrap {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg2);
+  padding: 8px 10px 6px;
+  overflow: hidden;
+}
+.bag-map { width: 100%; height: auto; display: block; }
+.bag-map-grid { stroke: var(--line2); stroke-width: 1; }
+.bag-map-axis {
+  fill: var(--faint);
+  font-family: var(--font-mono), monospace;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+}
+.bag-map-lbl {
+  fill: var(--muted);
+  font-size: 7.5px;
+  font-weight: 500;
+}

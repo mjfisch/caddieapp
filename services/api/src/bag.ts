@@ -74,3 +74,29 @@ export async function getBagClubs(pool: pg.Pool = getPool()): Promise<BagClub[]>
     lastSession: r.last_session,
   }));
 }
+
+/**
+ * Mission 3b — Card 1 (shot-count progress). The LIVE count of measured shots
+ * per bag club, straight from the `shot` log. Deliberately NOT the denormalized
+ * `club_dispersion.shot_count`: that column is a recompute snapshot that lags
+ * behind (it stays 0 for clubs below the measured bar — see importer.ts), so a
+ * "shots logged so far" card must count the raw rows. Pure read, no writes.
+ *
+ * Returns club → count for clubs that have any shots; a club with none is simply
+ * absent (callers treat a missing key as 0). Filtered to BAG_CLUBS so stray
+ * fixture clubs can't inflate the tally.
+ */
+export async function getClubShotCounts(
+  pool: pg.Pool = getPool(),
+): Promise<Record<string, number>> {
+  const { rows } = await pool.query<{ club: string; n: string }>(
+    `SELECT club, count(*)::int AS n
+       FROM shot
+      WHERE club = ANY($1)
+      GROUP BY club`,
+    [BAG_CLUBS as readonly string[]],
+  );
+  const counts: Record<string, number> = {};
+  for (const r of rows) counts[r.club] = Number(r.n);
+  return counts;
+}
