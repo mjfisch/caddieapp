@@ -1,0 +1,131 @@
+/* ============================================================
+   Caddie — dark-navy app token layer
+   Derived from Back Tee Partners Design System v2.0
+   Canonical brand colors kept exact; green brightened for
+   legibility on navy; one harmonious red derived for high-risk.
+   ============================================================ */
+
+/* Playfair Display — local brand font files */
+@font-face { font-family:'Playfair Display'; font-style:normal; font-weight:400; font-display:swap; src:url('fonts/PlayfairDisplay-Regular.ttf') format('truetype'); }
+@font-face { font-family:'Playfair Display'; font-style:normal; font-weight:500; font-display:swap; src:url('fonts/PlayfairDisplay-Medium.ttf') format('truetype'); }
+@font-face { font-family:'Playfair Display'; font-style:normal; font-weight:600; font-display:swap; src:url('fonts/PlayfairDisplay-SemiBold.ttf') format('truetype'); }
+@font-face { font-family:'Playfair Display'; font-style:normal; font-weight:700; font-display:swap; src:url('fonts/PlayfairDisplay-Bold.ttf') format('truetype'); }
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,400;1,500;1,600;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+:root {
+  /* ---------- BTP canonical ---------- */
+  --btp-deep-navy:   #1C2B4A;
+  --btp-turf-green:  #2D6A4F;
+  --btp-links-gold:  #C8B87A;
+  --btp-cloud-white: #F0F4F8;
+  --btp-steel-blue:  #8FA3B1;
+  --btp-ink:         #0F1A30;
+
+  /* ---------- Dark app surfaces (derived) ---------- */
+  --c-bg:        #0E1726;   /* app canvas — a hair deeper than navy */
+  --c-bg-2:      #111d33;   /* alt section bg */
+  --c-surface:   #16233E;   /* card */
+  --c-surface-2: #1D2D4C;   /* nested / elevated card */
+  --c-surface-3: #243757;   /* input wells, chips */
+
+  /* ---------- Text ---------- */
+  --c-text:    #F0F4F8;     /* cloud white */
+  --c-text-2:  #C3CEDA;     /* secondary */
+  --c-muted:   #8FA3B1;     /* steel blue */
+  --c-faint:   #5E7185;     /* dimmest labels */
+
+  /* ---------- Borders / dividers ---------- */
+  --c-hair:    rgba(240,244,248,0.08);
+  --c-border:  rgba(240,244,248,0.13);
+  --c-border-2:rgba(240,244,248,0.20);
+  --gold-rule: var(--btp-links-gold);
+
+  /* ---------- Semantic: safe / caution / risk ---------- */
+  --safe:        #4FB081;   /* brightened turf for text/dots on navy */
+  --safe-deep:   #2D6A4F;   /* canonical turf — fills */
+  --safe-soft:   rgba(79,176,129,0.14);
+  --safe-line:   rgba(79,176,129,0.45);
+
+  --caution:     #D8C684;   /* gold, nudged for dot legibility */
+  --caution-deep:#C8B87A;
+  --caution-soft:rgba(200,184,122,0.14);
+  --caution-line:rgba(200,184,122,0.5);
+
+  --risk:        #E2685B;   /* derived harmonious brick-red */
+  --risk-deep:   #B23B30;
+  --risk-soft:   rgba(226,104,91,0.14);
+  --risk-line:   rgba(226,104,91,0.5);
+
+  /* risk-intensity multiplier (driven by Tweaks) — scales hazard fills */
+  --risk-fill:   0.16;
+
+  /* ---------- Type ---------- */
+  --font-display:'Playfair Display', Georgia, serif;
+  --font-body:   'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:   'DM Sans', ui-monospace, monospace;
+
+  /* ---------- Radii ---------- */
+  --r-xs: 4px; --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-pill: 999px;
+
+  /* ---------- Motion ---------- */
+  --ease-out: cubic-bezier(0.22,0.61,0.36,1);
+  --dur-fast: 120ms; --dur: 180ms; --dur-slow: 280ms;
+
+  /* ---------- Elevation ---------- */
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.25), 0 6px 20px rgba(0,0,0,0.28);
+  --shadow-pop:  0 8px 24px rgba(0,0,0,0.4), 0 24px 60px rgba(0,0,0,0.45);
+}
+
+* { box-sizing: border-box; }
+
+.caddie-root {
+  font-family: var(--font-body);
+  color: var(--c-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01","cv01";
+}
+
+.caddie-root ::-webkit-scrollbar { width: 0; height: 0; }
+
+/* tabular numerals for all data figures */
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+.eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--btp-links-gold);
+}
+
+.serif { font-family: var(--font-display); }
+
+/* hairline divider */
+.hair { height: 1px; background: var(--c-hair); border: 0; }
+
+/* gold rule */
+.rule-gold { height: 1px; width: 40px; background: var(--btp-links-gold); border: 0; }
+
+/* focus ring per BTP */
+.caddie-root :focus-visible {
+  outline: 2px solid var(--safe);
+  outline-offset: 2px;
+}
+
+button { font-family: inherit; cursor: pointer; }
+
+/* fade/slide screen enter — translate only, never hides content */
+@keyframes screenIn {
+  from { transform: translateY(7px); }
+  to   { transform: translateY(0); }
+}
+.screen-in { animation: screenIn var(--dur-slow) var(--ease-out); }
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* tweak: hide schematic hazard labels */
+.no-hz-labels .hz-label { display: none; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
