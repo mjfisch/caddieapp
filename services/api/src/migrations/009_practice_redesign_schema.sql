@@ -110,11 +110,15 @@ BEGIN
   END IF;
 END $$;
 
--- Step 4 — the net-new session/drill entities (§5b/5d/5e). All child FKs use
--- ON DELETE CASCADE, matching the 005 pattern: deleting a practice_session tears
--- down its session_club rows and its drill blocks (and, via the block FK, the
--- block values). Note: drills are ARCHIVED, not deleted (drill.archived), so the
--- drill_id cascades below are a safety net that in practice rarely fires.
+-- Step 4 — the net-new session/drill entities (§5b/5d/5e). Ownership FKs CASCADE
+-- (a session owns its session_club rows and drill blocks; a block owns its
+-- values), matching the 005 pattern. But a REFERENCE to a drill is different: a
+-- drill is a definition that session history points back to, and per §5 drills
+-- are ARCHIVED (drill.archived), never hard-deleted. So session_drill_block.
+-- drill_id is ON DELETE RESTRICT — the DB refuses to delete a drill that has
+-- logged blocks, forcing archive-instead rather than silently taking history with
+-- it. (drill_metric_def.drill_id stays CASCADE: a metric def is owned by its
+-- drill, not history pointing at it.)
 
 -- §5b — one row per club tagged in a range / around-green session.
 -- shot_shape is null for around-green (full-swing concept, per §4c).
@@ -143,7 +147,7 @@ CREATE TABLE IF NOT EXISTS drill_metric_def (
 CREATE TABLE IF NOT EXISTS session_drill_block (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   practice_session_id uuid NOT NULL REFERENCES practice_session(id) ON DELETE CASCADE,
-  drill_id            uuid NOT NULL REFERENCES drill(id) ON DELETE CASCADE,
+  drill_id            uuid NOT NULL REFERENCES drill(id) ON DELETE RESTRICT,
   position            int NOT NULL,
   note                text
 );

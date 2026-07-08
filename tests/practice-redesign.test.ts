@@ -21,12 +21,18 @@ const hasDb = Boolean(process.env.DATABASE_URL);
 
 describe.skipIf(!hasDb)("Mission 2 — practice redesign schema round-trip", () => {
   const fixtureSessionIds: string[] = [];
+  const fixtureDrillIds: string[] = [];
 
   afterAll(async () => {
+    const pool = getPool();
+    // Sessions first: session_drill_block/_value + session_club cascade with the
+    // session FK, which also clears any block referencing a fixture drill…
     if (fixtureSessionIds.length > 0) {
-      const pool = getPool();
-      // session_drill_block/_value + session_club cascade with the session FK.
       await pool.query("DELETE FROM practice_session WHERE id = ANY($1::uuid[])", [fixtureSessionIds]);
+    }
+    // …so the fixture drills are now unreferenced and the RESTRICT FK permits their delete.
+    if (fixtureDrillIds.length > 0) {
+      await pool.query("DELETE FROM drill WHERE id = ANY($1::uuid[])", [fixtureDrillIds]);
     }
   });
 
@@ -157,6 +163,41 @@ describe.skipIf(!hasDb)("Mission 2 — practice redesign schema round-trip", () 
     // type-agnostic query — the widened domain didn't break the read path.
     expect(Array.isArray(sessions)).toBe(true);
     expect(sessions.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it("6. drill FK is RESTRICT: a drill with logged blocks refuses hard-delete but archives fine", async () => {
+    await runMigrations();
+    const pool = getPool();
+
+    // A throwaway drill fixture (not one of the seeded four).
+    const { rows: dRows } = await pool.query<{ id: string }>(
+      `INSERT INTO drill (area, title, description, resource_kind)
+       VALUES ('putting', 'RESTRICT test drill', 'fixture', 'drill') RETURNING id`,
+    );
+    const drillId = dRows[0]!.id;
+    fixtureDrillIds.push(drillId);
+
+    // A session + a block pointing at the fixture drill (i.e. logged history).
+    const { id: sessionId } = await createPracticeSession({ date: "2026-07-08", type: "putting" });
+    fixtureSessionIds.push(sessionId);
+    await pool.query(
+      "INSERT INTO session_drill_block (practice_session_id, drill_id, position) VALUES ($1, $2, 0)",
+      [sessionId, drillId],
+    );
+
+    // Hard-deleting the referenced drill must be REFUSED (ON DELETE RESTRICT) —
+    // history is not silently taken with it.
+    await expect(pool.query("DELETE FROM drill WHERE id = $1", [drillId])).rejects.toThrow();
+    // The drill is still there.
+    expect((await pool.query("SELECT 1 FROM drill WHERE id = $1", [drillId])).rowCount).toBe(1);
+
+    // Archiving it instead succeeds — the definition retires, history survives.
+    await pool.query("UPDATE drill SET archived = true WHERE id = $1", [drillId]);
+    const { rows: after } = await pool.query<{ archived: boolean }>(
+      "SELECT archived FROM drill WHERE id = $1",
+      [drillId],
+    );
+    expect(after[0]!.archived).toBe(true);
   });
 });
 
