@@ -69,7 +69,18 @@ export type PracticeDeps = {
   streamText?: (prompt: string) => AsyncIterable<string>;
 };
 
-const SESSION_TYPES = ["trackman", "grass_range", "short_game", "net"] as const;
+// Mission 2: 'around_green' + 'putting' added (Practice Tab Spec v2 §2). 'net'
+// stays valid server-side for now — the client picker still offers it, so
+// removing it here would 400 a still-live UI; its removal is a later UI mission.
+// Must stay in lockstep with the DB CHECK in 009_practice_redesign_schema.sql.
+const SESSION_TYPES = [
+  "trackman",
+  "grass_range",
+  "short_game",
+  "net",
+  "around_green",
+  "putting",
+] as const;
 export type PracticeSessionType = (typeof SESSION_TYPES)[number];
 
 export type CreatePracticeSessionInput = {
