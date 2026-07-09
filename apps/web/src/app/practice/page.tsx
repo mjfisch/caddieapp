@@ -2,6 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  FORM_FIELDS,
+  buildSaveBody,
+  initialFieldValues,
+  listValue,
+  scalarValue,
+  type FieldDef,
+  type FieldValues,
+  type SessionTypeId,
+} from "./formFields";
 
 // Practice tab (Phase 4.5) — the input side of the GAI Caddie loop. CLIENT code:
 // it talks to the server only over fetch (/api/practice/*) and NEVER imports
@@ -48,8 +58,7 @@ const SESSION_TYPES = [
   { id: "grass_range", label: "Grass range", sub: "Off turf · no LM data", feeds: "feel" },
   { id: "short_game", label: "Short game", sub: "Chip · putt · bunker", feeds: "feel" },
   { id: "net", label: "Spornia net", sub: "Home · swing thoughts", feeds: "feel" },
-] as const;
-type SessionTypeId = (typeof SESSION_TYPES)[number]["id"];
+] as const satisfies readonly { id: SessionTypeId; label: string; sub: string; feeds: "data" | "feel" }[];
 
 const FOCUS_OPTIONS: { label: string; area: string }[] = [
   { label: "Driver", area: "driver" },
@@ -147,18 +156,8 @@ export default function PracticePage() {
   const [recap, setRecap] = useState("");
   const [focus, setFocus] = useState<Set<string>>(new Set());
   const [focusHighlight, setFocusHighlight] = useState<string | null>(null);
-  // type-specific
-  const [facility, setFacility] = useState("");
-  const [surface, setSurface] = useState("");
-  const [ball, setBall] = useState("");
-  const [location, setLocation] = useState("");
-  const [conditions, setConditions] = useState("");
-  const [sgArea, setSgArea] = useState("putting_green");
-  const [lagIn3ft, setLagIn3ft] = useState("");
-  const [upDown, setUpDown] = useState("");
-  const [clubsWorked, setClubsWorked] = useState<Set<string>>(new Set());
-  const [reps, setReps] = useState("");
-  const [swingThought, setSwingThought] = useState("");
+  // type-specific — one state object keyed by FieldDef.key (see formFields.ts)
+  const [fields, setFields] = useState<FieldValues>(initialFieldValues);
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -277,22 +276,16 @@ export default function PracticePage() {
     return next;
   }
 
+  function setField(key: string, value: string | string[]) {
+    setFields((prev) => ({ ...prev, [key]: value }));
+  }
+
   function resetForm() {
     setDurationMin("");
     setRating(0);
     setRecap("");
     setFocus(new Set());
-    setFacility("");
-    setSurface("");
-    setBall("");
-    setLocation("");
-    setConditions("");
-    setSgArea("putting_green");
-    setLagIn3ft("");
-    setUpDown("");
-    setClubsWorked(new Set());
-    setReps("");
-    setSwingThought("");
+    setFields(initialFieldValues());
   }
 
   async function saveSession() {
@@ -300,56 +293,9 @@ export default function PracticePage() {
     setSaveOk(false);
     setSaveError(null);
 
-    const focusAreas = new Set(focus);
-    const metrics: { kind: string; value: number }[] = [];
-    let recapText = recap.trim();
-    let loc: string | null = null;
-    let surf: string | null = null;
-    let ballType: string | null = null;
-
-    if (type === "trackman") {
-      loc = facility.trim() || null;
-      surf = surface.trim() || null;
-      ballType = ball.trim() || null;
-    } else if (type === "grass_range") {
-      loc = location.trim() || null;
-      surf = "grass";
-      if (conditions.trim()) recapText = `Conditions: ${conditions.trim()}\n${recapText}`.trim();
-    } else if (type === "short_game") {
-      const tagByArea: Record<string, string> = {
-        putting_green: "lag_putting",
-        chipping: "chipping",
-        pitching: "pitching",
-        bunker: "bunker",
-      };
-      const tag = tagByArea[sgArea];
-      if (tag) focusAreas.add(tag);
-      if (lagIn3ft.trim() && Number.isFinite(Number(lagIn3ft)))
-        metrics.push({ kind: "lag_in_3ft", value: Number(lagIn3ft) });
-      if (upDown.trim() && Number.isFinite(Number(upDown)))
-        metrics.push({ kind: "up_and_down", value: Number(upDown) });
-    } else if (type === "net") {
-      const worked = [...clubsWorked];
-      if (reps.trim() && Number.isFinite(Number(reps)))
-        metrics.push({ kind: "reps", value: Number(reps) });
-      const parts: string[] = [];
-      if (worked.length) parts.push(`Clubs: ${worked.join(", ")}.`);
-      if (swingThought.trim()) parts.push(`Swing thought: ${swingThought.trim()}.`);
-      recapText = [parts.join(" "), recapText].filter(Boolean).join("\n").trim();
-    }
-
-    const body = {
-      date,
-      type,
-      location: loc,
-      surface: surf,
-      ball: ballType,
-      duration_min: durationMin.trim() && Number.isFinite(Number(durationMin)) ? Number(durationMin) : null,
-      overall_rating: rating > 0 ? rating : null,
-      recap_md: recapText || null,
-      focusAreas: [...focusAreas],
-      metrics,
-    };
+    // Per-type body assembly is registry-driven; the shape is pinned by
+    // tests/form-fields.test.ts to the pre-registry hand-written version.
+    const body = buildSaveBody({ type, date, durationMin, rating, recap, focus, fields });
 
     try {
       const res = await fetch("/api/practice/sessions", {
@@ -579,91 +525,8 @@ export default function PracticePage() {
           </div>
         </div>
 
-        {/* Type-specific */}
-        {type === "trackman" && (
-          <div className="pr-grid">
-            <div className="pr-field">
-              <label htmlFor="pr-fac">Facility</label>
-              <input id="pr-fac" className="pr-input" value={facility} onChange={(e) => setFacility(e.target.value)} placeholder="Oak Brook GC" />
-            </div>
-            <div className="pr-field">
-              <label htmlFor="pr-surf">Surface</label>
-              <input id="pr-surf" className="pr-input" value={surface} onChange={(e) => setSurface(e.target.value)} placeholder="Mat" />
-            </div>
-            <div className="pr-field full">
-              <label htmlFor="pr-ball">Ball</label>
-              <input id="pr-ball" className="pr-input" value={ball} onChange={(e) => setBall(e.target.value)} placeholder="Range" />
-            </div>
-          </div>
-        )}
-        {type === "grass_range" && (
-          <div className="pr-grid">
-            <div className="pr-field">
-              <label htmlFor="pr-loc">Location</label>
-              <input id="pr-loc" className="pr-input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Range name" />
-            </div>
-            <div className="pr-field">
-              <label>Surface</label>
-              <input className="pr-input" value="Grass" disabled readOnly />
-            </div>
-            <div className="pr-field full">
-              <label htmlFor="pr-cond">Wind / conditions</label>
-              <input id="pr-cond" className="pr-input" value={conditions} onChange={(e) => setConditions(e.target.value)} placeholder="Calm, into off the right" />
-            </div>
-          </div>
-        )}
-        {type === "short_game" && (
-          <>
-            <div className="pr-field full">
-              <label htmlFor="pr-sga">Area</label>
-              <select id="pr-sga" className="pr-select" value={sgArea} onChange={(e) => setSgArea(e.target.value)}>
-                <option value="putting_green">Putting green</option>
-                <option value="chipping">Chipping</option>
-                <option value="pitching">Pitching</option>
-                <option value="bunker">Bunker</option>
-              </select>
-            </div>
-            <div className="pr-grid">
-              <div className="pr-field">
-                <label htmlFor="pr-lag">Lag: in 3 ft (%)</label>
-                <input id="pr-lag" className="pr-input" type="number" inputMode="numeric" value={lagIn3ft} onChange={(e) => setLagIn3ft(e.target.value)} placeholder="70" />
-              </div>
-              <div className="pr-field">
-                <label htmlFor="pr-ud">Up &amp; down (%)</label>
-                <input id="pr-ud" className="pr-input" type="number" inputMode="numeric" value={upDown} onChange={(e) => setUpDown(e.target.value)} placeholder="50" />
-              </div>
-            </div>
-          </>
-        )}
-        {type === "net" && (
-          <>
-            <div className="pr-field full">
-              <label>Clubs worked</label>
-              <div className="pr-chips">
-                {["Driver", "7i", "8i", "PW", "Wedges"].map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    className={`pr-chip${clubsWorked.has(c) ? " on" : ""}`}
-                    onClick={() => setClubsWorked((s) => toggle(s, c))}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="pr-grid">
-              <div className="pr-field">
-                <label htmlFor="pr-reps">Reps</label>
-                <input id="pr-reps" className="pr-input" type="number" inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} placeholder="40" />
-              </div>
-              <div className="pr-field">
-                <label htmlFor="pr-st">Swing thought</label>
-                <input id="pr-st" className="pr-input" value={swingThought} onChange={(e) => setSwingThought(e.target.value)} placeholder="Shallower takeaway" />
-              </div>
-            </div>
-          </>
-        )}
+        {/* Type-specific — driven by the form-field registry (formFields.ts) */}
+        <TypeFields defs={FORM_FIELDS[type]} fields={fields} onChange={setField} />
 
         {/* Trackman import bridge */}
         {type === "trackman" && (
@@ -858,6 +721,131 @@ export default function PracticePage() {
       </footer>
     </main>
   );
+}
+
+// ── Registry-driven field rendering (Mission 3) ─────────────────────────────────
+// Consecutive layout:"grid" fields share one .pr-grid; standalone fields render
+// as their own full-width .pr-field block — matching the hand-written markup
+// this replaced, so the DOM (classes, ids, labels, placeholders) is unchanged.
+function TypeFields({
+  defs,
+  fields,
+  onChange,
+}: {
+  defs: FieldDef[];
+  fields: FieldValues;
+  onChange: (key: string, value: string | string[]) => void;
+}) {
+  const groups: { grid: boolean; defs: FieldDef[] }[] = [];
+  for (const def of defs) {
+    const last = groups[groups.length - 1];
+    if (def.layout === "grid" && last && last.grid) last.defs.push(def);
+    else groups.push({ grid: def.layout === "grid", defs: [def] });
+  }
+  return (
+    <>
+      {groups.map((g) =>
+        g.grid ? (
+          <div className="pr-grid" key={g.defs[0]!.key}>
+            {g.defs.map((d) => (
+              <Field key={d.key} def={d} fields={fields} onChange={onChange} />
+            ))}
+          </div>
+        ) : (
+          <Field key={g.defs[0]!.key} def={g.defs[0]!} fields={fields} onChange={onChange} />
+        ),
+      )}
+    </>
+  );
+}
+
+function Field({
+  def,
+  fields,
+  onChange,
+}: {
+  def: FieldDef;
+  fields: FieldValues;
+  onChange: (key: string, value: string | string[]) => void;
+}) {
+  const wrap = def.layout === "standalone" ? "pr-field full" : `pr-field${def.gridFull ? " full" : ""}`;
+  switch (def.kind) {
+    case "text":
+      return (
+        <div className={wrap}>
+          <label htmlFor={def.id}>{def.label}</label>
+          <input
+            id={def.id}
+            className="pr-input"
+            value={scalarValue(fields, def.key)}
+            onChange={(e) => onChange(def.key, e.target.value)}
+            placeholder={def.placeholder}
+          />
+        </div>
+      );
+    case "number":
+      return (
+        <div className={wrap}>
+          <label htmlFor={def.id}>{def.label}</label>
+          <input
+            id={def.id}
+            className="pr-input"
+            type="number"
+            inputMode="numeric"
+            value={scalarValue(fields, def.key)}
+            onChange={(e) => onChange(def.key, e.target.value)}
+            placeholder={def.placeholder}
+          />
+        </div>
+      );
+    case "select":
+      return (
+        <div className={wrap}>
+          <label htmlFor={def.id}>{def.label}</label>
+          <select
+            id={def.id}
+            className="pr-select"
+            value={scalarValue(fields, def.key)}
+            onChange={(e) => onChange(def.key, e.target.value)}
+          >
+            {def.options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    case "readonly":
+      return (
+        <div className={wrap}>
+          <label>{def.label}</label>
+          <input className="pr-input" value={def.displayValue} disabled readOnly />
+        </div>
+      );
+    case "chips": {
+      const selected = listValue(fields, def.key);
+      return (
+        <div className={wrap}>
+          <label>{def.label}</label>
+          <div className="pr-chips">
+            {def.options.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`pr-chip${selected.includes(c) ? " on" : ""}`}
+                onClick={() =>
+                  onChange(def.key, selected.includes(c) ? selected.filter((x) => x !== c) : [...selected, c])
+                }
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+  }
 }
 
 // "2026-06-03" → { Jun / 3 } stacked. Parsed as plain parts (no Date tz shift).
