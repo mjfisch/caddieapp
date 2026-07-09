@@ -56,3 +56,15 @@ The practice coach must never fabricate a drill URL or attribute a drill to a so
 ## D16 — Two design systems (RESOLVED v2.1, 2026-06-04)
 
 GAI Caddie product UI = the dark as-built tokens (this repo's `globals.css`). BTP brand = the agency's light marketing identity, never app chrome — only a "Built by Back Tee Partners" attribution. See Build Plan §10 D16 for the full entry.
+
+## D17 — Rebrand: GAI Caddie → Capt. 69 OS (RESOLVED, 2026-07-09, Mission 3.5)
+
+Name-level rebrand only — strings, metadata, and docs. No schema change, no behavior change, no theme/layout change.
+
+- **Display name: "Capt. 69 OS".** Header wordmark renders CAPT. 69 OS in the existing header style — "OS" in the accent green (the existing `--green` token), the rest in the existing light text color. Fonts unchanged.
+- **Origin.** Capt. 69 is Michael's nickname (he shot 69). The existing Captain 69 persona is unchanged, and Rain Man remains the default coach voice — the brand and the persona coexist. No persona config touched.
+- **Tagline: "Built for the next 69".** Replaces "The strokes-gained engine, in your pocket" everywhere it appeared (hero copy, metadata description).
+- **Slug: `capt69os`.** Michael adds `capt69os.vercel.app` as a domain in the Vercel dashboard by hand — no domain config in code. Verified nothing in code hardcodes `caddieapp-web` in a way that would break under a second domain.
+- **Interim mark.** A minimal SVG favicon/app icon: a thin circle outline in the accent green containing "69" in the house mono font (JetBrains Mono Bold glyph outlines, so no font dependency at render time) on the navy background — the scorecard circled-number = under-par notation. Files: `capt69-favicon.svg`, `capt69-icon.svg`; `favicon-32.png` / `favicon-180.png` re-rendered from the same mark. A refined logo replaces it later.
+- **Theme, colors, layout: unchanged.**
+- **Deliberately NOT renamed:** the GitHub repo, the `@gai/*` package scopes, anything in the database, persona definitions, and any file path that ripples through imports — invisible plumbing, not worth the import churn. Historical D-entries above keep the old name; this entry records the rename.

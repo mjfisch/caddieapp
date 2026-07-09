@@ -10,7 +10,7 @@ const FLAGS: { flag: ConfidenceFlag; label: string }[] = [
 // The dispersion mark — the SG engine drawn small (ellipse + aim dot + landing dot).
 function DispersionMark({ size = 40 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="GAI Caddie">
+    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Capt. 69 OS">
       <g transform="rotate(-22 32 32)">
         <ellipse cx="32" cy="32" rx="20" ry="11.5" fill="none" stroke="var(--green)" strokeWidth="3.2" />
         <ellipse cx="32" cy="32" rx="11.5" ry="6.6" fill="none" stroke="var(--green)" strokeWidth="3.2" />
@@ -75,7 +75,9 @@ export default function Home() {
             <DispersionMark size={22} />
           </span>
           <span className="lp-brand-text">
-            <strong>GAI Caddie</strong>
+            <strong>
+              CAPT. 69 <span style={{ color: "var(--green)" }}>OS</span>
+            </strong>
             <small>by Back Tee Partners</small>
           </span>
         </div>
@@ -87,7 +89,7 @@ export default function Home() {
       {/* Hero — mono eyebrow + serif display line (existing copy). */}
       <section className="lp-hero">
         <span className="lp-eyebrow">Strokes-gained caddie</span>
-        <h1 className="lp-title serif">The strokes-gained engine, in your pocket.</h1>
+        <h1 className="lp-title serif">Built for the next 69.</h1>
       </section>
 
       {/* Entry points: primary = prep/yardage book, then on-course play, then practice. */}
