@@ -13,7 +13,7 @@ import {
   type SessionTypeId,
 } from "./formFields";
 
-// Practice tab (Phase 4.5) — the input side of the GAI Caddie loop. CLIENT code:
+// Practice tab (Phase 4.5) — the input side of the Capt. 69 OS loop. CLIENT code:
 // it talks to the server only over fetch (/api/practice/*) and NEVER imports
 // @gai/api or references the Anthropic key (invariant #3). The coach's drill
 // links arrive from the server's `drills` SSE event — the model never invents one.

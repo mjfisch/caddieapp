@@ -1,9 +1,9 @@
 ---
 name: verify
-description: Build/launch/drive recipe for verifying GAI Caddie changes at runtime (web app, practice tab flows).
+description: Build/launch/drive recipe for verifying Capt. 69 OS changes at runtime (web app, practice tab flows).
 ---
 
-# Verifying GAI Caddie changes
+# Verifying Capt. 69 OS changes
 
 ## Build & launch
 

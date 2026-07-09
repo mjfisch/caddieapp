@@ -2,7 +2,7 @@
   "name": "gai-caddie",
   "version": "0.0.0",
   "private": true,
-  "description": "GAI Caddie — AI-authored web golf yardage book. Phase 0 skeleton & rails.",
+  "description": "Capt. 69 OS (formerly GAI Caddie) — personal golf practice and stats app.",
   "type": "module",
   "workspaces": [
     "apps/*",

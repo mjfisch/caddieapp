@@ -1,6 +1,6 @@
-# GAI Caddie — root CLAUDE.md
+# Capt. 69 OS — root CLAUDE.md
 
-AI-authored, web-based golf yardage book. Two modes: heavy **prep** authoring, light **on-course** read. Web + Vercel + Postgres. No native, no PostGIS, no live GPS, no polygon geometry (deliberately removed in the v2 pivot — don't add them back without a decision-log entry).
+Capt. 69 OS (formerly GAI Caddie, D17): a personal golf practice and stats app — practice logging, drill blocks, the bag, rounds. Web + Vercel + Postgres. No native, no PostGIS, no live GPS, no polygon geometry (deliberately removed in the v2 pivot — don't add them back without a decision-log entry).
 
 ## The non-negotiable invariants (breaking one is a bug, not a judgment call)
 
@@ -16,7 +16,7 @@ AI-authored, web-based golf yardage book. Two modes: heavy **prep** authoring, l
 - **Markdown all the way down** for every context layer (rules, persona voice, profile, club data) — human-readable, diffable, hand-editable.
 - **Monorepo** (npm workspaces): `apps/web`, `services/api`, `packages/{sg-engine,caddie-context,shared}`, `courses`, `docs`, `tests`.
 - **Build discipline:** fresh session per mission; narrow task with explicit input/output files; no "review everything" prompts; checkpoint + commit often; build the test first when output is verifiable; keep every CLAUDE.md short and current.
-- **Two design systems (D16):** GAI Caddie product UI = the dark as-built tokens (this app). BTP brand = the agency's light marketing identity (never app chrome; only a "Built by Back Tee Partners" attribution).
+- **Two design systems (D16):** Capt. 69 OS product UI = the dark as-built tokens (this app). BTP brand = the agency's light marketing identity (never app chrome; only a "Built by Back Tee Partners" attribution).
 
 ## What not to do
 

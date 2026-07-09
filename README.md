@@ -1,6 +1,8 @@
-# GAI Caddie
+# Capt. 69 OS
 
-AI-authored, web-based golf yardage book. The strokes-gained engine, in your pocket.
+Personal golf practice and stats app — practice logging, drill blocks, the bag, rounds. Built for the next 69.
+
+*Capt. 69 is Michael's nickname (he shot 69). The Captain 69 persona predates the brand and is unchanged — Rain Man remains the default coach voice. Formerly GAI Caddie; see D17 in `docs/DECISIONS.md`.*
 
 **Phase 0 — skeleton & rails.** A monorepo that boots locally, deploys to Vercel, talks to Postgres, keeps the Anthropic key server-side only, and completes one trivial end-to-end round-trip.
 
