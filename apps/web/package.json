@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node ../../services/api/scripts/generate-migrations-manifest.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

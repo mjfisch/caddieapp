@@ -1,8 +1,6 @@
 import "server-only";
 import pg from "pg";
-import { readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { MIGRATIONS } from "./migrations.generated";
 
 // INVARIANT #3 boundary: this module is server-only. The DATABASE_URL (and the
 // Anthropic key in anthropic.ts) live exclusively on the server. A client import
@@ -23,13 +21,14 @@ export function getPool(): pg.Pool {
 }
 
 // ── Migrations ────────────────────────────────────────────────────────────
-// Plain .sql files in ./migrations, applied in filename order. Each runs once,
-// inside a transaction, and is recorded in _migrations so re-running is a no-op.
-
-// Resolved relative to this module's own location (services/api/src) rather
-// than via `new URL(..., import.meta.url)`, which the bundler tries to resolve
-// as a static asset and chokes on for a directory.
-const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), "migrations");
+// Migrations are authored as .sql files in ./migrations, but the runner reads
+// them from migrations.generated.ts — a build-time manifest that embeds each
+// file's content as a string, in filename order. No runtime filesystem reads:
+// inside the Vercel serverless bundle the raw files sit at no predictable path,
+// and the old readdirSync fallback silently no-oped on ENOENT (mission 2.6 /
+// docs/diagnostic_migration_009.md). Each pending file runs once, in its own
+// transaction, and is recorded in _migrations so re-running is a no-op.
+// Any failure here THROWS — a migration system must never silently skip.
 
 let migrationsPromise: Promise<void> | undefined;
 
@@ -52,33 +51,19 @@ export function runMigrations(): Promise<void> {
 const MIGRATION_LOCK_KEY = 778_899;
 
 async function applyMigrations(): Promise<void> {
-  const pool = getPool();
-
-  // Read the migration list FIRST, before taking any DB resources. In a bundled
-  // serverless runtime (Vercel) the raw .sql files may not be traced into the
-  // function, so this dir can be absent. That is NOT fatal: migrations are applied
-  // out-of-band against the shared Neon DB from local dev (the test + seed flows),
-  // so a serverless instance that can't see the files simply has nothing to do.
-  // Skip cleanly rather than 500-ing every DB-backed route. A fresh DB is still
-  // migrated by whoever CAN read the files (dev, or a build with the files traced).
-  let files: string[];
-  try {
-    files = readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith(".sql"))
-      .sort(); // filename order: 001_… before 002_…
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
-      console.warn(
-        `[db] migrations dir not found at ${MIGRATIONS_DIR}; assuming the DB is migrated out-of-band (bundled runtime). Skipping.`,
-      );
-      return;
-    }
-    throw err;
+  // An empty manifest can only mean build-time generation broke (or every
+  // migration was deleted). Refuse to serve against a DB whose state we can't
+  // establish — loud failure, never a silent no-op.
+  if (MIGRATIONS.length === 0) {
+    const msg =
+      "[db] migration manifest is EMPTY — regenerate services/api/src/migrations.generated.ts " +
+      "(node services/api/scripts/generate-migrations-manifest.mjs). Refusing to continue.";
+    console.error(msg);
+    throw new Error(msg);
   }
-  if (files.length === 0) return;
 
-  // The whole apply runs in ONE transaction guarded by a TRANSACTION-scoped
-  // advisory lock. Why both:
+  // Each transaction (ledger bootstrap, then one per migration file) is guarded
+  // by a TRANSACTION-scoped advisory lock. Why:
   //   - The lock serializes concurrent migrators (parallel test workers, concurrent
   //     serverless cold-starts). Without it, two processes racing to create the SAME
   //     brand-new table both run `CREATE TABLE IF NOT EXISTS`, and Postgres' system
@@ -89,28 +74,41 @@ async function applyMigrations(): Promise<void> {
   //     at COMMIT/ROLLBACK *and* if the connection drops. A killed worker therefore
   //     can never leak the lock and wedge every later run — the failure mode a
   //     session lock has.
+  //   - One transaction PER FILE (not one for the whole batch) means an already-
+  //     committed migration stays applied and recorded even if a later one fails,
+  //     and the ledger check runs inside each lock so racing instances can't
+  //     double-apply a file.
+  const pool = getPool();
   const client = await pool.connect();
   let current = "(pre-flight)";
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock($1)", [MIGRATION_LOCK_KEY]);
-
     await client.query(`
       CREATE TABLE IF NOT EXISTS _migrations (
         filename text PRIMARY KEY,
         applied_at timestamptz NOT NULL DEFAULT now()
       );
     `);
+    await client.query("COMMIT");
 
-    for (const filename of files) {
+    for (const { filename, sql } of MIGRATIONS) {
+      current = filename;
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock($1)", [MIGRATION_LOCK_KEY]);
+
+      // Exact-filename ledger check, inside the lock: applied iff a row exists.
+      // This is what keeps manually-applied migrations (e.g. 009 via the Neon
+      // SQL editor) from ever being re-run.
       const { rowCount } = await client.query(
         "SELECT 1 FROM _migrations WHERE filename = $1",
         [filename]
       );
-      if (rowCount) continue; // already applied — skip
+      if (rowCount) {
+        await client.query("COMMIT");
+        continue;
+      }
 
-      current = filename;
-      const sql = readFileSync(join(MIGRATIONS_DIR, filename), "utf8");
       await client.query(sql);
       // ON CONFLICT DO NOTHING: belt-and-suspenders alongside the lock above. Every
       // migration body is guarded (IF NOT EXISTS / NOT EXISTS), so a double-apply is
@@ -119,15 +117,15 @@ async function applyMigrations(): Promise<void> {
         "INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING",
         [filename],
       );
+      await client.query("COMMIT");
     }
-
-    await client.query("COMMIT");
   } catch (err) {
     try {
       await client.query("ROLLBACK");
     } catch {
       /* connection already broken — the xact lock drops with it */
     }
+    console.error(`[db] migration ${current} FAILED:`, err);
     throw new Error(
       `migration ${current} failed: ${err instanceof Error ? err.message : String(err)}`
     );
