@@ -12,7 +12,7 @@
 // Pure data + pure functions — no React, no I/O — so tests/form-fields.test.ts
 // can assert the exact POST body per type in the node test harness.
 
-export const SESSION_TYPE_IDS = ["trackman", "grass_range", "short_game", "net"] as const;
+export const SESSION_TYPE_IDS = ["trackman", "grass_range", "short_game", "net", "putting"] as const;
 export type SessionTypeId = (typeof SESSION_TYPE_IDS)[number];
 
 /** Top-level practice_session columns a field can write into. */
@@ -204,6 +204,10 @@ export const FORM_FIELDS: Record<SessionTypeId, FieldDef[]> = {
       payload: { to: "recapPrefix", prefix: (raw) => (raw.trim() ? `Swing thought: ${raw.trim()}.` : null) },
     },
   ],
+  // Putting has NO scalar registry fields: its structure is the ordered drill-block
+  // list, a bespoke widget (like rating/chips), assembled separately below (§4d,
+  // Mission 4). Shared fields (date/duration/rating/recap) stay universal.
+  putting: [],
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -234,6 +238,63 @@ export function listValue(fields: FieldValues, key: string): string[] {
   return Array.isArray(v) ? v : [];
 }
 
+// ── Drill blocks (Putting — bespoke widget, not a FieldDef) ─────────────────────
+
+/** A drill's metric definition, as delivered by GET /api/practice/drills. */
+export type DrillMetricDef = {
+  id: string;
+  label: string;
+  unit: string | null;
+  valueType: string;
+};
+
+/** A putting drill in the block picker. General is the is_system, metric-less one. */
+export type PuttingDrill = {
+  id: string;
+  title: string;
+  area: string;
+  isSystem: boolean;
+  sortOrder: number | null;
+  metricDefs: DrillMetricDef[];
+};
+
+/**
+ * One drill block being edited in the Putting form. `uid` is a client-only stable
+ * React key (the same drill may be added more than once). `values` maps a metric
+ * def id → its raw input string; blank/non-numeric entries are dropped on save.
+ */
+export type DrillBlockDraft = {
+  uid: string;
+  drillId: string;
+  drillTitle: string;
+  metricDefs: DrillMetricDef[];
+  values: Record<string, string>;
+  note: string;
+};
+
+/** The wire shape of a block: position is the array index, so it isn't sent. */
+export type DrillBlockPayload = {
+  drillId: string;
+  note: string | null;
+  values: { metricDefId: string; value: number }[];
+};
+
+/**
+ * Fold the block drafts into their wire payload, preserving list order (= block
+ * position). Only filled, finite metric values survive; an empty block (no note,
+ * no metrics) still emits a payload so it records "I did this drill" (§4d).
+ */
+export function buildDrillBlocks(blocks: DrillBlockDraft[]): DrillBlockPayload[] {
+  return blocks.map((b) => ({
+    drillId: b.drillId,
+    note: b.note.trim() ? b.note.trim() : null,
+    values: b.metricDefs
+      .map((def) => ({ metricDefId: def.id, raw: b.values[def.id] ?? "" }))
+      .filter((x) => x.raw.trim() !== "" && Number.isFinite(Number(x.raw)))
+      .map((x) => ({ metricDefId: x.metricDefId, value: Number(x.raw) })),
+  }));
+}
+
 // ── Save-payload assembly ──────────────────────────────────────────────────────
 
 export type SaveSessionBody = {
@@ -247,6 +308,8 @@ export type SaveSessionBody = {
   recap_md: string | null;
   focusAreas: string[];
   metrics: { kind: string; value: number }[];
+  /** Ordered drill blocks — present for putting sessions only. */
+  drillBlocks?: DrillBlockPayload[];
 };
 
 /**
@@ -262,6 +325,8 @@ export function buildSaveBody(input: {
   recap: string;
   focus: ReadonlySet<string>;
   fields: FieldValues;
+  /** Putting drill blocks (ignored for other types). */
+  blocks?: DrillBlockDraft[];
 }): SaveSessionBody {
   const { type, fields } = input;
   const focusAreas = new Set(input.focus);
@@ -298,7 +363,7 @@ export function buildSaveBody(input: {
   // above the free-text recap — matching the hand-written assembly this replaced.
   const recapText = [recapParts.join(" "), input.recap.trim()].filter(Boolean).join("\n").trim();
 
-  return {
+  const body: SaveSessionBody = {
     date: input.date,
     type,
     location: columns.location,
@@ -311,4 +376,12 @@ export function buildSaveBody(input: {
     focusAreas: [...focusAreas],
     metrics,
   };
+
+  // Putting alone carries drill blocks (the bespoke widget). Other types never
+  // get the `drillBlocks` key, so their wire body is byte-for-byte unchanged.
+  if (type === "putting") {
+    body.drillBlocks = buildDrillBlocks(input.blocks ?? []);
+  }
+
+  return body;
 }

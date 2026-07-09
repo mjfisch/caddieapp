@@ -4,6 +4,7 @@ import {
   buildSaveBody,
   initialFieldValues,
   type FieldValues,
+  type DrillBlockDraft,
 } from "../apps/web/src/app/practice/formFields";
 
 // =============================================================
@@ -36,8 +37,18 @@ function fields(overrides: FieldValues = {}): FieldValues {
 }
 
 describe("registry shape", () => {
-  it("covers exactly the four current session types", () => {
-    expect(Object.keys(FORM_FIELDS).sort()).toEqual(["grass_range", "net", "short_game", "trackman"]);
+  it("covers exactly the current session types (putting added, none removed)", () => {
+    expect(Object.keys(FORM_FIELDS).sort()).toEqual([
+      "grass_range",
+      "net",
+      "putting",
+      "short_game",
+      "trackman",
+    ]);
+  });
+
+  it("putting has no scalar registry fields (its structure is the bespoke block list)", () => {
+    expect(FORM_FIELDS.putting).toEqual([]);
   });
 
   it("field keys are unique across the whole registry (they share one state object)", () => {
@@ -296,5 +307,108 @@ describe("net payload", () => {
     });
     expect(body.recap_md).toBeNull();
     expect(body.metrics).toEqual([]);
+  });
+});
+
+describe("putting payload (drill blocks — Mission 4)", () => {
+  const gate: DrillBlockDraft = {
+    uid: "b1",
+    drillId: "gate-uuid",
+    drillTitle: "Gate Drill (MJF variant)",
+    metricDefs: [{ id: "resets-uuid", label: "Resets", unit: null, valueType: "integer" }],
+    values: { "resets-uuid": "2" },
+    note: "",
+  };
+  const general: DrillBlockDraft = {
+    uid: "b2",
+    drillId: "general-uuid",
+    drillTitle: "General",
+    metricDefs: [],
+    values: {},
+    note: "  30–60 ft, came up short  ",
+  };
+
+  it("emits ordered blocks; filled metrics only; General is note-only", () => {
+    const body = buildSaveBody({
+      type: "putting",
+      date: "2026-07-08",
+      durationMin: "40",
+      rating: 4,
+      recap: "Putting felt good",
+      focus: new Set(),
+      fields: fields(),
+      blocks: [gate, general],
+    });
+    expect(body).toEqual({
+      date: "2026-07-08",
+      type: "putting",
+      location: null,
+      surface: null,
+      ball: null,
+      duration_min: 40,
+      overall_rating: 4,
+      recap_md: "Putting felt good",
+      focusAreas: [],
+      metrics: [],
+      drillBlocks: [
+        { drillId: "gate-uuid", note: null, values: [{ metricDefId: "resets-uuid", value: 2 }] },
+        { drillId: "general-uuid", note: "30–60 ft, came up short", values: [] },
+      ],
+    });
+    // Block order is exactly the list order, and drillBlocks is the one extra key.
+    expect(Object.keys(body)).toEqual([...BODY_KEYS, "drillBlocks"]);
+    expect(body.drillBlocks!.map((b) => b.drillId)).toEqual(["gate-uuid", "general-uuid"]);
+  });
+
+  it("reordering the drafts reorders the wire blocks (position = list order)", () => {
+    const body = buildSaveBody({
+      type: "putting",
+      date: "2026-07-08",
+      durationMin: "",
+      rating: 0,
+      recap: "",
+      focus: new Set(),
+      fields: fields(),
+      blocks: [general, gate],
+    });
+    expect(body.drillBlocks!.map((b) => b.drillId)).toEqual(["general-uuid", "gate-uuid"]);
+  });
+
+  it("drops blank/non-numeric metric values but keeps the (empty) block", () => {
+    const lag: DrillBlockDraft = {
+      uid: "b1",
+      drillId: "lag-uuid",
+      drillTitle: "Lag Ladder",
+      metricDefs: [
+        { id: "dist", label: "Distance", unit: "ft", valueType: "integer" },
+        { id: "balls", label: "Balls", unit: null, valueType: "integer" },
+      ],
+      values: { dist: "", balls: "abc" },
+      note: "",
+    };
+    const body = buildSaveBody({
+      type: "putting",
+      date: "2026-07-08",
+      durationMin: "",
+      rating: 0,
+      recap: "",
+      focus: new Set(),
+      fields: fields(),
+      blocks: [lag],
+    });
+    expect(body.drillBlocks).toEqual([{ drillId: "lag-uuid", note: null, values: [] }]);
+  });
+
+  it("no blocks → an empty drillBlocks array (key still present for putting)", () => {
+    const body = buildSaveBody({
+      type: "putting",
+      date: "2026-07-08",
+      durationMin: "",
+      rating: 0,
+      recap: "",
+      focus: new Set(),
+      fields: fields(),
+    });
+    expect(body.drillBlocks).toEqual([]);
   });
 });

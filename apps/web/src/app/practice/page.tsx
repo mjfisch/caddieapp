@@ -11,6 +11,8 @@ import {
   type FieldDef,
   type FieldValues,
   type SessionTypeId,
+  type PuttingDrill,
+  type DrillBlockDraft,
 } from "./formFields";
 
 // Practice tab (Phase 4.5) — the input side of the Capt. 69 OS loop. CLIENT code:
@@ -35,6 +37,11 @@ type ClubConf = {
   feelLevel: number | null;
   note: string | null;
 };
+type SessionBlock = {
+  drillTitle: string;
+  note: string | null;
+  metrics: { label: string; unit: string | null; value: number }[];
+};
 type Session = {
   id: string;
   date: string;
@@ -44,6 +51,7 @@ type Session = {
   overall_rating: number | null;
   recap_md: string | null;
   focusAreas: string[];
+  blocks?: SessionBlock[];
 };
 
 const PERSONAS: Persona[] = [
@@ -57,6 +65,7 @@ const SESSION_TYPES = [
   { id: "trackman", label: "Trackman range", sub: "Map my bag · feeds dispersion", feeds: "data" },
   { id: "grass_range", label: "Grass range", sub: "Off turf · no LM data", feeds: "feel" },
   { id: "short_game", label: "Short game", sub: "Chip · putt · bunker", feeds: "feel" },
+  { id: "putting", label: "Putting", sub: "Drill blocks · lag & gate", feeds: "feel" },
   { id: "net", label: "Spornia net", sub: "Home · swing thoughts", feeds: "feel" },
 ] as const satisfies readonly { id: SessionTypeId; label: string; sub: string; feeds: "data" | "feel" }[];
 
@@ -89,6 +98,7 @@ const TYPE_LABEL: Record<string, string> = {
   trackman: "Trackman",
   grass_range: "Grass range",
   short_game: "Short game",
+  putting: "Putting",
   net: "Spornia net",
 };
 
@@ -158,6 +168,9 @@ export default function PracticePage() {
   const [focusHighlight, setFocusHighlight] = useState<string | null>(null);
   // type-specific — one state object keyed by FieldDef.key (see formFields.ts)
   const [fields, setFields] = useState<FieldValues>(initialFieldValues);
+  // Putting only: the ordered drill-block list + the drill catalog for its picker.
+  const [blocks, setBlocks] = useState<DrillBlockDraft[]>([]);
+  const [puttingDrills, setPuttingDrills] = useState<PuttingDrill[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -214,10 +227,22 @@ export default function PracticePage() {
     }
   }, []);
 
+  const loadDrills = useCallback(async () => {
+    try {
+      const res = await fetch("/api/practice/drills");
+      if (!res.ok) return;
+      const j = (await res.json()) as { drills: PuttingDrill[] };
+      setPuttingDrills(j.drills ?? []);
+    } catch {
+      /* leave the picker empty on failure */
+    }
+  }, []);
+
   useEffect(() => {
     void loadConfidence();
     void loadSessions();
-  }, [loadConfidence, loadSessions]);
+    void loadDrills();
+  }, [loadConfidence, loadSessions, loadDrills]);
 
   // ── Coach: POST + stream ──
   async function getPlan() {
@@ -286,6 +311,7 @@ export default function PracticePage() {
     setRecap("");
     setFocus(new Set());
     setFields(initialFieldValues());
+    setBlocks([]);
   }
 
   async function saveSession() {
@@ -295,7 +321,7 @@ export default function PracticePage() {
 
     // Per-type body assembly is registry-driven; the shape is pinned by
     // tests/form-fields.test.ts to the pre-registry hand-written version.
-    const body = buildSaveBody({ type, date, durationMin, rating, recap, focus, fields });
+    const body = buildSaveBody({ type, date, durationMin, rating, recap, focus, fields, blocks });
 
     try {
       const res = await fetch("/api/practice/sessions", {
@@ -492,6 +518,12 @@ export default function PracticePage() {
             feel.
           </p>
         )}
+        {type === "putting" && (
+          <p className="pr-form-note feel">
+            Build the session from drill blocks — add each drill you ran, in order, and log its numbers.
+            A block with just a note still counts (it records that you did the drill).
+          </p>
+        )}
         {type === "net" && (
           <p className="pr-form-note feel">
             The net stops the ball — no distance or dispersion possible. Pure swing-thought &amp;
@@ -527,6 +559,11 @@ export default function PracticePage() {
 
         {/* Type-specific — driven by the form-field registry (formFields.ts) */}
         <TypeFields defs={FORM_FIELDS[type]} fields={fields} onChange={setField} />
+
+        {/* Putting — bespoke ordered drill-block list (not registry-driven) */}
+        {type === "putting" && (
+          <DrillBlocks blocks={blocks} drills={puttingDrills} onChange={setBlocks} />
+        )}
 
         {/* Trackman import bridge */}
         {type === "trackman" && (
@@ -671,6 +708,32 @@ export default function PracticePage() {
                     </div>
                     {s.focusAreas.length > 0 && (
                       <div className="pr-sess-sub">{s.focusAreas.join(" · ")}</div>
+                    )}
+                    {s.type === "putting" && s.blocks && s.blocks.length > 0 && (
+                      <div className="pr-sess-blocks">
+                        {s.blocks.map((b, i) => {
+                          const noteClip =
+                            b.note && b.note.length > 100 ? `${b.note.slice(0, 100)}…` : b.note ?? "";
+                          return (
+                            <div key={i} className="pr-sess-block">
+                              <span className="pr-sess-block-t">{b.drillTitle}</span>
+                              {b.metrics.length > 0 && (
+                                <span className="pr-sess-block-m">
+                                  {" — "}
+                                  {b.metrics
+                                    .map((m) => `${m.label}: ${m.value}${m.unit ? ` ${m.unit}` : ""}`)
+                                    .join(", ")}
+                                </span>
+                              )}
+                              {b.note && (
+                                <div className={`pr-sess-sub${open ? "" : " clip"}`}>
+                                  {open ? b.note : noteClip}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                     {recapFull && (
                       <div className={`pr-sess-sub${open ? "" : " clip"}`}>{open ? recapFull : recapClip}</div>
@@ -846,6 +909,157 @@ function Field({
       );
     }
   }
+}
+
+// ── Putting drill blocks (Mission 4) ────────────────────────────────────────────
+// The bespoke widget the registry deliberately doesn't model: an ordered list of
+// drill blocks. "Add block" opens a picker (General first, then drills by
+// sort_order); a block renders its drill's metric inputs (unit-suffixed) + a note;
+// General renders a note only. Blocks reorder (up/down), delete, and the same
+// drill may be added more than once. All values optional. List order = position.
+function DrillBlocks({
+  blocks,
+  drills,
+  onChange,
+}: {
+  blocks: DrillBlockDraft[];
+  drills: PuttingDrill[];
+  onChange: (next: DrillBlockDraft[]) => void;
+}) {
+  const [picking, setPicking] = useState(false);
+
+  function addBlock(drill: PuttingDrill) {
+    const uid = `${drill.id}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const draft: DrillBlockDraft = {
+      uid,
+      drillId: drill.id,
+      drillTitle: drill.title,
+      metricDefs: drill.metricDefs,
+      values: {},
+      note: "",
+    };
+    onChange([...blocks, draft]);
+    setPicking(false);
+  }
+
+  function patch(uid: string, next: Partial<DrillBlockDraft>) {
+    onChange(blocks.map((b) => (b.uid === uid ? { ...b, ...next } : b)));
+  }
+  function setMetric(uid: string, metricId: string, value: string) {
+    onChange(
+      blocks.map((b) => (b.uid === uid ? { ...b, values: { ...b.values, [metricId]: value } } : b)),
+    );
+  }
+  function move(idx: number, dir: -1 | 1) {
+    const j = idx + dir;
+    if (j < 0 || j >= blocks.length) return;
+    const next = [...blocks];
+    const tmp = next[idx]!;
+    next[idx] = next[j]!;
+    next[j] = tmp;
+    onChange(next);
+  }
+  function remove(uid: string) {
+    onChange(blocks.filter((b) => b.uid !== uid));
+  }
+
+  return (
+    <div className="pr-field full">
+      <label>Drill blocks</label>
+      <div className="pr-blocks">
+        {blocks.map((b, i) => (
+          <div key={b.uid} className="pr-block">
+            <div className="pr-block-head">
+              <span className="pr-block-num">{i + 1}</span>
+              <span className="pr-block-title">{b.drillTitle}</span>
+              <div className="pr-block-ctrls">
+                <button
+                  type="button"
+                  className="pr-block-ctrl mono"
+                  onClick={() => move(i, -1)}
+                  disabled={i === 0}
+                  aria-label="Move block up"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="pr-block-ctrl mono"
+                  onClick={() => move(i, 1)}
+                  disabled={i === blocks.length - 1}
+                  aria-label="Move block down"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className="pr-block-ctrl mono"
+                  onClick={() => remove(b.uid)}
+                  aria-label="Remove block"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            {b.metricDefs.length > 0 && (
+              <div className="pr-grid pr-block-metrics">
+                {b.metricDefs.map((m) => (
+                  <div className="pr-field" key={m.id}>
+                    <label htmlFor={`${b.uid}-${m.id}`}>{m.label}</label>
+                    <div className="pr-metric-input">
+                      <input
+                        id={`${b.uid}-${m.id}`}
+                        className="pr-input"
+                        type="number"
+                        inputMode="numeric"
+                        value={b.values[m.id] ?? ""}
+                        onChange={(e) => setMetric(b.uid, m.id, e.target.value)}
+                        placeholder="—"
+                      />
+                      {m.unit && <span className="pr-metric-unit">{m.unit}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <textarea
+              className="pr-textarea pr-block-note"
+              value={b.note}
+              onChange={(e) => patch(b.uid, { note: e.target.value })}
+              placeholder={b.metricDefs.length > 0 ? "Block note (optional)" : "What you worked on…"}
+            />
+          </div>
+        ))}
+
+        {picking ? (
+          <div className="pr-picker">
+            {drills.length === 0 && <p className="pr-empty">No drills available.</p>}
+            {drills.map((d) => (
+              <button key={d.id} type="button" className="pr-picker-opt" onClick={() => addBlock(d)}>
+                <b>{d.title}</b>
+                {d.metricDefs.length > 0 ? (
+                  <small>{d.metricDefs.map((m) => m.label).join(" · ")}</small>
+                ) : (
+                  <small>Note only</small>
+                )}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="pr-picker-cancel mono"
+              onClick={() => setPicking(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="pr-addblock" onClick={() => setPicking(true)}>
+            + Add block
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // "2026-06-03" → { Jun / 3 } stacked. Parsed as plain parts (no Date tz shift).
