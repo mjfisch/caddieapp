@@ -83,6 +83,18 @@ const SESSION_TYPES = [
 ] as const;
 export type PracticeSessionType = (typeof SESSION_TYPES)[number];
 
+/**
+ * One drill block in a putting session (Practice Tab Spec v2 §4d/§5e). Order is
+ * the array index — `position` is assigned from it. `values` holds only the
+ * metrics the user actually filled; an empty block (General note-only, or a drill
+ * block with nothing entered) still records "I did this drill".
+ */
+export type CreateDrillBlockInput = {
+  drillId: string;
+  note?: string | null;
+  values?: Array<{ metricDefId: string; value: number }>;
+};
+
 export type CreatePracticeSessionInput = {
   date: string;
   type: PracticeSessionType;
@@ -95,6 +107,8 @@ export type CreatePracticeSessionInput = {
   linked_shot_session?: string | null;
   focusAreas?: string[];
   metrics?: Array<{ kind: string; value: number }>;
+  /** Ordered drill blocks — putting sessions only (§4d). */
+  drillBlocks?: CreateDrillBlockInput[];
 };
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
@@ -167,6 +181,30 @@ export async function createPracticeSession(
       }
     }
 
+    // Ordered drill blocks (§4d/§5e). position = list order; a block with no
+    // values and no note still inserts (it records that the drill was done).
+    // Skipped-empty positions stay contiguous via a running counter.
+    let position = 0;
+    for (const block of input.drillBlocks ?? []) {
+      if (!block || typeof block.drillId !== "string" || block.drillId.trim() === "") continue;
+      const { rows: blockRows } = await client.query<{ id: string }>(
+        `INSERT INTO session_drill_block (practice_session_id, drill_id, position, note)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id`,
+        [id, block.drillId, position, block.note?.trim() ? block.note.trim() : null],
+      );
+      const blockId = blockRows[0]!.id;
+      position += 1;
+      for (const v of block.values ?? []) {
+        if (v && typeof v.metricDefId === "string" && v.metricDefId.trim() !== "" && Number.isFinite(v.value)) {
+          await client.query(
+            "INSERT INTO session_drill_value (block_id, metric_def_id, value) VALUES ($1, $2, $3)",
+            [blockId, v.metricDefId, v.value],
+          );
+        }
+      }
+    }
+
     await client.query("COMMIT");
     return { id };
   } catch (err) {
@@ -181,6 +219,14 @@ export async function createPracticeSession(
   }
 }
 
+/** One drill block rolled up for display (title + its filled metrics + note). */
+export type SessionDrillBlockView = {
+  drillTitle: string;
+  note: string | null;
+  /** Only the metrics that were filled, in the drill's metric sort order. */
+  metrics: Array<{ label: string; unit: string | null; value: number }>;
+};
+
 export type PracticeSessionRow = {
   id: string;
   date: string;
@@ -193,6 +239,8 @@ export type PracticeSessionRow = {
   recap_md: string | null;
   linked_shot_session: string | null;
   focusAreas: string[];
+  /** Ordered drill blocks — populated for putting sessions only (empty otherwise). */
+  blocks: SessionDrillBlockView[];
 };
 
 /** All sessions, newest first, each with its focus-area tags rolled up. */
@@ -221,6 +269,48 @@ export async function listPracticeSessions(
       GROUP BY s.id
       ORDER BY s.date DESC, s.created_at DESC`,
   );
+
+  // Second pass: pull the ordered drill blocks for the putting sessions only, so
+  // the flat session query above stays type-agnostic (the read-path finding from
+  // the Mission 1 code trace). Each block carries its title, note, and the metrics
+  // that were actually filled, in the drill's metric sort order.
+  const puttingIds = rows.filter((r) => r.type === "putting").map((r) => r.id);
+  const blocksBySession = new Map<string, SessionDrillBlockView[]>();
+  if (puttingIds.length > 0) {
+    const { rows: blockRows } = await pool.query<{
+      practice_session_id: string;
+      drill_title: string;
+      note: string | null;
+      metrics: Array<{ label: string; unit: string | null; value: string | number }> | null;
+    }>(
+      `SELECT b.practice_session_id, d.title AS drill_title, b.note,
+              COALESCE(
+                json_agg(
+                  json_build_object('label', dmd.label, 'unit', dmd.unit, 'value', v.value)
+                  ORDER BY dmd.sort_order
+                ) FILTER (WHERE v.id IS NOT NULL),
+                '[]'
+              ) AS metrics
+         FROM session_drill_block b
+         JOIN drill d ON d.id = b.drill_id
+         LEFT JOIN session_drill_value v ON v.block_id = b.id
+         LEFT JOIN drill_metric_def dmd ON dmd.id = v.metric_def_id
+        WHERE b.practice_session_id = ANY($1::uuid[])
+        GROUP BY b.id, d.title, b.note, b.position
+        ORDER BY b.practice_session_id, b.position`,
+      [puttingIds],
+    );
+    for (const br of blockRows) {
+      const list = blocksBySession.get(br.practice_session_id) ?? [];
+      list.push({
+        drillTitle: br.drill_title,
+        note: br.note,
+        metrics: (br.metrics ?? []).map((m) => ({ label: m.label, unit: m.unit, value: Number(m.value) })),
+      });
+      blocksBySession.set(br.practice_session_id, list);
+    }
+  }
+
   return rows.map((r) => ({
     id: r.id,
     date: r.date,
@@ -233,6 +323,7 @@ export async function listPracticeSessions(
     recap_md: r.recap_md,
     linked_shot_session: r.linked_shot_session,
     focusAreas: r.focus_areas ?? [],
+    blocks: blocksBySession.get(r.id) ?? [],
   }));
 }
 
@@ -263,6 +354,63 @@ export async function deletePracticeSession(
       `could not delete practice session: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
+}
+
+// ── Drills (putting block picker) ─────────────────────────────────────────────
+
+export type DrillMetricDefView = {
+  id: string;
+  label: string;
+  unit: string | null;
+  valueType: string;
+};
+
+export type PuttingDrillView = {
+  id: string;
+  title: string;
+  area: string;
+  isSystem: boolean;
+  sortOrder: number | null;
+  metricDefs: DrillMetricDefView[];
+};
+
+/**
+ * Active (non-archived) putting drills for the block picker (§4d), each with its
+ * ordered metric definitions. Ordered General (the is_system block) first, then
+ * the defined drills by sort_order — the exact order the "Add block" picker shows.
+ */
+export async function listPuttingDrills(deps: PracticeDeps = {}): Promise<PuttingDrillView[]> {
+  const pool = deps.pool ?? getPool();
+  const { rows } = await pool.query<{
+    id: string;
+    title: string;
+    area: string;
+    is_system: boolean;
+    sort_order: number | null;
+    metric_defs: Array<{ id: string; label: string; unit: string | null; valueType: string }> | null;
+  }>(
+    `SELECT d.id, d.title, d.area, d.is_system, d.sort_order,
+            COALESCE(
+              json_agg(
+                json_build_object('id', dmd.id, 'label', dmd.label, 'unit', dmd.unit, 'valueType', dmd.value_type)
+                ORDER BY dmd.sort_order
+              ) FILTER (WHERE dmd.id IS NOT NULL),
+              '[]'
+            ) AS metric_defs
+       FROM drill d
+       LEFT JOIN drill_metric_def dmd ON dmd.drill_id = d.id
+      WHERE d.area = 'putting' AND d.archived = false
+      GROUP BY d.id
+      ORDER BY d.is_system DESC, d.sort_order NULLS LAST, d.title`,
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    area: r.area,
+    isSystem: r.is_system,
+    sortOrder: r.sort_order,
+    metricDefs: r.metric_defs ?? [],
+  }));
 }
 
 // ── Dual confidence ─────────────────────────────────────────────────────────

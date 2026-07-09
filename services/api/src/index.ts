@@ -36,6 +36,7 @@ export {
   createPracticeSession,
   listPracticeSessions,
   deletePracticeSession,
+  listPuttingDrills,
   getClubConfidence,
   upsertClubConfidence,
   runPracticeCoachStream,
@@ -47,7 +48,11 @@ export {
   type PracticeDeps,
   type PracticeSessionType,
   type CreatePracticeSessionInput,
+  type CreateDrillBlockInput,
   type PracticeSessionRow,
+  type SessionDrillBlockView,
+  type PuttingDrillView,
+  type DrillMetricDefView,
   type ClubConfidenceView,
 } from "./practice";
 export {

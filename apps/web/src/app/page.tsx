@@ -88,7 +88,7 @@ export default function Home() {
 
       {/* Hero — mono eyebrow + serif display line (existing copy). */}
       <section className="lp-hero">
-        <span className="lp-eyebrow">Strokes-gained caddie</span>
+        <span className="lp-eyebrow">Personal golf OS</span>
         <h1 className="lp-title serif">Built for the next 69.</h1>
       </section>
 

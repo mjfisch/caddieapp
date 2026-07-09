@@ -1005,6 +1005,59 @@ a:hover { text-decoration: underline; }
 .pr-save:disabled { background: var(--muted); cursor: default; }
 .pr-ok { margin: 0; color: var(--green); font-size: 13px; font-weight: 600; }
 
+/* Putting drill blocks (Mission 4) — ordered, reorderable, deletable list. */
+.pr-blocks { display: flex; flex-direction: column; gap: 10px; }
+.pr-block {
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+  display: flex; flex-direction: column; gap: 10px; background: rgba(255, 255, 255, 0.015);
+}
+.pr-block-head { display: flex; align-items: center; gap: 8px; }
+.pr-block-num {
+  flex: none; width: 20px; height: 20px; border-radius: 6px; font-family: var(--font-mono), monospace;
+  font-size: 11px; font-weight: 700; color: var(--green); background: rgba(95, 217, 145, 0.16);
+  display: flex; align-items: center; justify-content: center;
+}
+.pr-block-title { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; }
+.pr-block-ctrls { display: flex; gap: 4px; flex: none; }
+.pr-block-ctrl {
+  min-width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 8px;
+  background: transparent; color: var(--muted); font-size: 12px; cursor: pointer;
+}
+.pr-block-ctrl:hover:not(:disabled) { border-color: var(--green-dim, #2f7f57); color: var(--green); }
+.pr-block-ctrl:disabled { opacity: 0.35; cursor: default; }
+.pr-block-metrics { gap: 10px; }
+.pr-metric-input { position: relative; display: flex; align-items: center; }
+.pr-metric-input .pr-input { padding-right: 34px; }
+.pr-metric-unit {
+  position: absolute; right: 12px; font-size: 12px; color: var(--faint);
+  font-family: var(--font-mono), monospace; pointer-events: none;
+}
+.pr-block-note { min-height: 48px; }
+.pr-addblock {
+  border: 1px dashed var(--line); border-radius: 12px; padding: 11px; background: transparent;
+  color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.pr-addblock:hover { border-color: var(--green-dim, #2f7f57); color: var(--green); }
+.pr-picker {
+  border: 1px solid var(--line); border-radius: 12px; padding: 8px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.pr-picker-opt {
+  text-align: left; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px;
+  background: transparent; cursor: pointer;
+}
+.pr-picker-opt:hover { border-color: var(--green-dim, #2f7f57); background: rgba(95, 217, 145, 0.06); }
+.pr-picker-opt b { display: block; font-size: 13.5px; font-weight: 700; }
+.pr-picker-opt small { display: block; font-size: 11px; color: var(--faint); margin-top: 2px; }
+.pr-picker-cancel {
+  align-self: flex-start; border: none; background: transparent; color: var(--muted);
+  font-size: 12px; cursor: pointer; padding: 4px 2px;
+}
+.pr-sess-blocks { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+.pr-sess-block { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.pr-sess-block-t { font-weight: 600; color: var(--text); }
+.pr-sess-block-m { color: var(--muted); }
+
 /* Dual-confidence panel. */
 .pr-conf-help { font-size: 12px; color: var(--muted); margin: 0 4px 10px; line-height: 1.45; }
 .pr-conf {

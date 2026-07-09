@@ -165,6 +165,108 @@ describe.skipIf(!hasDb)("Mission 2 — practice redesign schema round-trip", () 
     expect(sessions.length).toBeGreaterThanOrEqual(10);
   });
 
+  it("7. Mission 4: a 3-block putting session round-trips in order and cascades on delete", async () => {
+    await runMigrations();
+    const pool = getPool();
+
+    // Resolve the seeded drills + their metric-def ids (the picker's source).
+    const { rows: defRows } = await pool.query<{ drill_id: string; title: string; label: string; def_id: string }>(
+      `SELECT d.id AS drill_id, d.title, dmd.label, dmd.id AS def_id
+         FROM drill d
+         JOIN drill_metric_def dmd ON dmd.drill_id = d.id
+        WHERE d.title IN ('Gate Drill (MJF variant)', 'Lag Ladder', 'Circle Drill')`,
+    );
+    const drillId = (title: string) => defRows.find((r) => r.title === title)!.drill_id;
+    const defId = (title: string, label: string) =>
+      defRows.find((r) => r.title === title && r.label === label)!.def_id;
+
+    // The Jul 8 session (definition of done): Gate (Resets 2) → Lag Ladder
+    // (Distance 30, Balls 10, 3-putts 1) → Circle (Distance 10, Balls 10, Makes 5).
+    const { id } = await createPracticeSession({
+      date: "2026-07-08",
+      type: "putting",
+      duration_min: 45,
+      overall_rating: 4,
+      recap_md: "Jul 8 putting — gate/lag/circle",
+      drillBlocks: [
+        {
+          drillId: drillId("Gate Drill (MJF variant)"),
+          note: "reset twice early",
+          values: [{ metricDefId: defId("Gate Drill (MJF variant)", "Resets"), value: 2 }],
+        },
+        {
+          drillId: drillId("Lag Ladder"),
+          note: null,
+          values: [
+            { metricDefId: defId("Lag Ladder", "Distance"), value: 30 },
+            { metricDefId: defId("Lag Ladder", "Balls"), value: 10 },
+            { metricDefId: defId("Lag Ladder", "3-putts"), value: 1 },
+          ],
+        },
+        {
+          drillId: drillId("Circle Drill"),
+          note: "",
+          values: [
+            { metricDefId: defId("Circle Drill", "Distance"), value: 10 },
+            { metricDefId: defId("Circle Drill", "Balls"), value: 10 },
+            { metricDefId: defId("Circle Drill", "Makes"), value: 5 },
+          ],
+        },
+      ],
+    });
+    fixtureSessionIds.push(id);
+
+    // Blocks persisted with contiguous positions 0,1,2 in list order.
+    const { rows: posRows } = await pool.query<{ position: number; title: string }>(
+      `SELECT b.position, d.title
+         FROM session_drill_block b JOIN drill d ON d.id = b.drill_id
+        WHERE b.practice_session_id = $1
+        ORDER BY b.position`,
+      [id],
+    );
+    expect(posRows.map((r) => [r.position, r.title])).toEqual([
+      [0, "Gate Drill (MJF variant)"],
+      [1, "Lag Ladder"],
+      [2, "Circle Drill"],
+    ]);
+
+    // Read back through the app's own list query — ordered blocks, filled metrics.
+    const sessions = await listPracticeSessions();
+    const mine = sessions.find((s) => s.id === id)!;
+    expect(mine.blocks.map((b) => b.drillTitle)).toEqual([
+      "Gate Drill (MJF variant)",
+      "Lag Ladder",
+      "Circle Drill",
+    ]);
+    expect(mine.blocks[0]!.metrics).toEqual([{ label: "Resets", unit: null, value: 2 }]);
+    expect(mine.blocks[1]!.metrics).toEqual([
+      { label: "Distance", unit: "ft", value: 30 },
+      { label: "Balls", unit: null, value: 10 },
+      { label: "3-putts", unit: null, value: 1 },
+    ]);
+    expect(mine.blocks[2]!.metrics).toEqual([
+      { label: "Distance", unit: "ft", value: 10 },
+      { label: "Balls", unit: null, value: 10 },
+      { label: "Makes", unit: null, value: 5 },
+    ]);
+
+    // All nine metric values are present across the three blocks.
+    const valueCount = await pool.query(
+      `SELECT count(*)::int AS n FROM session_drill_value v
+         JOIN session_drill_block b ON b.id = v.block_id
+        WHERE b.practice_session_id = $1`,
+      [id],
+    );
+    expect((valueCount.rows[0] as { n: number }).n).toBe(9);
+
+    // Delete cascades blocks + values to zero (session_drill_block/_value FKs).
+    const { deleted } = await deletePracticeSession(id);
+    expect(deleted).toBe(true);
+    fixtureSessionIds.splice(fixtureSessionIds.indexOf(id), 1);
+    const blocksAfter = await pool.query("SELECT 1 FROM session_drill_block WHERE practice_session_id = $1", [id]);
+    expect(blocksAfter.rowCount).toBe(0);
+  });
+
   it("6. drill FK is RESTRICT: a drill with logged blocks refuses hard-delete but archives fine", async () => {
     await runMigrations();
     const pool = getPool();
