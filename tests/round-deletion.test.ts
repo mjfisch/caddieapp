@@ -140,9 +140,12 @@ describe.skipIf(!hasDb)("Mission 2 — server delete, cascade, and is_test exclu
   it("3. deletePracticeSession removes the session AND its focus + metric children (cascade)", async () => {
     await runMigrations();
     const pool = getPool();
+    // grass_range here since Mission 7 retired short_game from creation; the
+    // server still accepts focusAreas/metrics input for any type, and this test
+    // only cares that the child rows cascade with the session.
     const { id } = await createPracticeSession({
       date: "2026-06-06",
-      type: "short_game",
+      type: "grass_range",
       focusAreas: ["lag_putting", "chipping"],
       metrics: [{ kind: "lag_in_3ft", value: 70 }],
     });

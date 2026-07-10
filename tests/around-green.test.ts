@@ -121,10 +121,12 @@ describe.skipIf(!hasDb)("Mission 6 — Around the Green round-trip", () => {
     });
     fixtureSessionIds.push(emptyId);
 
-    const { id: legacyId } = await createPracticeSession({
-      date: "2026-07-10",
-      type: "short_game",
-    });
+    // Raw SQL: Mission 7 retired short_game from the create API, but a legacy
+    // row (pre-009, so no tag arrays) is exactly what this case is about.
+    const { rows: legacyRows } = await pool.query<{ id: string }>(
+      "INSERT INTO practice_session (date, type) VALUES ('2026-07-10', 'short_game') RETURNING id",
+    );
+    const legacyId = legacyRows[0]!.id;
     fixtureSessionIds.push(legacyId);
 
     const { rows } = await pool.query<{ id: string; lie_types: string[] | null; shot_types: string[] | null }>(

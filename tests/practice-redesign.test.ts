@@ -5,19 +5,42 @@ import {
   createPracticeSession,
   listPracticeSessions,
   deletePracticeSession,
+  PracticeError,
 } from "@gai/api";
 
 // =============================================================
 // Mission 2 — Practice redesign schema + drill seed (migration 009).
+// Mission 7 — 'net' (Spornia) + 'short_game' retired from creation (migration 011).
 //
 // DB-backed, so it gates on DATABASE_URL and self-skips without it (same pattern
 // as round-deletion / migrations tests). It runs against the SAME Neon DB the app
 // reads, so every fixture self-cleans in afterAll — a leaked session would show
-// up in the live app. It creates NO courses and touches none of the 10 existing
+// up in the live app. It creates NO courses and touches none of the existing
 // legacy sessions.
 // =============================================================
 
 const hasDb = Boolean(process.env.DATABASE_URL);
+
+// ── Mission 7: retired types are rejected BEFORE any DB work, so this needs no
+// DATABASE_URL — a clean PracticeError 400, never a Postgres constraint error.
+describe("Mission 7 — retired session types are rejected on create", () => {
+  it.each(["net", "short_game"] as const)("type '%s' → PracticeError 400", async (type) => {
+    // @ts-expect-error — the retired values are deliberately no longer in PracticeSessionType.
+    const attempt = createPracticeSession({ date: "2026-07-10", type });
+    await expect(attempt).rejects.toBeInstanceOf(PracticeError);
+    await expect(attempt).rejects.toMatchObject({ status: 400 });
+    await expect(attempt).rejects.toThrow(/type must be one of/);
+  });
+
+  it("the four offered types are exactly trackman/grass_range/around_green/putting", async () => {
+    // The validation message enumerates SESSION_TYPES — pin it so a stale list
+    // (the three-lists finding from the Mission 1 trace) fails loudly here.
+    // @ts-expect-error — invalid type on purpose to read the enumeration back.
+    await expect(createPracticeSession({ date: "2026-07-10", type: "nope" })).rejects.toThrow(
+      "type must be one of: trackman, grass_range, around_green, putting",
+    );
+  });
+});
 
 describe.skipIf(!hasDb)("Mission 2 — practice redesign schema round-trip", () => {
   const fixtureSessionIds: string[] = [];
@@ -48,15 +71,47 @@ describe.skipIf(!hasDb)("Mission 2 — practice redesign schema round-trip", () 
     expect(pm.rows[0]!.count).toBeGreaterThanOrEqual(0);
   });
 
-  it("1. widened type domain: an existing short_game/net session still validates and inserts", async () => {
+  it("1. Mission 7: legacy short_game rows still list (with focus tags) and still delete", async () => {
     await runMigrations();
-    // short_game and net MUST stay legal — the 10 legacy rows depend on it.
-    const legacy = await createPracticeSession({ date: "2026-07-08", type: "short_game" });
-    fixtureSessionIds.push(legacy.id);
-    const net = await createPracticeSession({ date: "2026-07-08", type: "net" });
-    fixtureSessionIds.push(net.id);
-    expect(legacy.id).toBeTruthy();
-    expect(net.id).toBeTruthy();
+    const pool = getPool();
+
+    // The API refuses new short_game sessions, so stage the legacy fixture the
+    // way the 7 real rows exist: directly in the tables. This doubles as proof
+    // that migration 011 KEPT 'short_game' in the CHECK constraint.
+    const { rows } = await pool.query<{ id: string }>(
+      `INSERT INTO practice_session (date, type, recap_md)
+       VALUES ('2026-07-08', 'short_game', 'legacy fixture') RETURNING id`,
+    );
+    const id = rows[0]!.id;
+    fixtureSessionIds.push(id);
+    await pool.query("INSERT INTO practice_focus (practice_session_id, area) VALUES ($1, 'chipping'), ($1, 'lag_putting')", [id]);
+
+    // Renders in history: the flat list query returns it with its old tags
+    // (the practice_focus join is kept precisely for these rows).
+    const sessions = await listPracticeSessions();
+    const mine = sessions.find((s) => s.id === id)!;
+    expect(mine).toBeDefined();
+    expect(mine.type).toBe("short_game");
+    expect(mine.focusAreas).toEqual(["chipping", "lag_putting"]);
+
+    // Legacy is label-only — the row stays deletable (no read-only gating).
+    const { deleted } = await deletePracticeSession(id);
+    expect(deleted).toBe(true);
+    fixtureSessionIds.splice(fixtureSessionIds.indexOf(id), 1);
+  });
+
+  it("1b. Mission 7: migration 011 dropped 'net' from the CHECK and is in the ledger", async () => {
+    await runMigrations();
+    const pool = getPool();
+
+    // A direct INSERT of the retired 'net' type violates the tightened constraint.
+    await expect(
+      pool.query("INSERT INTO practice_session (date, type) VALUES ('2026-07-10', 'net')"),
+    ).rejects.toThrow(/practice_session_type_check/);
+
+    // The runner recorded 011 — the same check the deploy verification uses.
+    const ledger = await pool.query("SELECT 1 FROM _migrations WHERE filename = '011_retire_net_type.sql'");
+    expect(ledger.rowCount).toBe(1);
   });
 
   it("2. club roster seeded: 7i–64°LW eligible, longer clubs not; no unmapped strings", async () => {

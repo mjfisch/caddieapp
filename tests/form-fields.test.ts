@@ -15,9 +15,14 @@ import {
 // The expected bodies below were transcribed from saveSession() in
 // apps/web/src/app/practice/page.tsx AS IT STOOD BEFORE the refactor
 // (commit 2a468a3, lines 298–352) — they are the spec. buildSaveBody()
-// must reproduce them exactly: same keys, same nesting, same
-// focusAreas/metrics behavior. Pure module — no DB, no React, runs in
-// the node harness unconditionally.
+// must reproduce them exactly: same keys, same nesting.
+//
+// Mission 7 update: 'short_game' and 'net' (Spornia) are retired from the
+// registry — their payload specs are gone with their forms. The Focus Areas
+// chips and metric inputs are retired app-wide, so focusAreas/metrics are
+// pinned to [] for every type (the keys stay for wire-shape stability;
+// practice_focus/practice_metric are frozen, written by nothing).
+// Pure module — no DB, no React, runs in the node harness unconditionally.
 // =============================================================
 
 // The exact top-level key set (and order) of the POST /api/practice/sessions body.
@@ -39,13 +44,11 @@ function fields(overrides: FieldValues = {}): FieldValues {
 }
 
 describe("registry shape", () => {
-  it("covers exactly the current session types (around_green added, none removed)", () => {
+  it("covers exactly the four offered session types (short_game and net retired, Mission 7)", () => {
     expect(Object.keys(FORM_FIELDS).sort()).toEqual([
       "around_green",
       "grass_range",
-      "net",
       "putting",
-      "short_game",
       "trackman",
     ]);
   });
@@ -63,26 +66,14 @@ describe("registry shape", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("initialFieldValues matches the pre-refactor useState defaults", () => {
+  it("initialFieldValues covers exactly the surviving types' fields", () => {
     expect(initialFieldValues()).toEqual({
       facility: "",
       surface: "",
       ball: "",
       location: "",
       conditions: "",
-      sgArea: "putting_green",
-      lagIn3ft: "",
-      upDown: "",
-      clubsWorked: [],
-      reps: "",
-      swingThought: "",
     });
-  });
-
-  it("initialFieldValues returns fresh array instances (no shared mutable state)", () => {
-    const a = initialFieldValues();
-    const b = initialFieldValues();
-    expect(a.clubsWorked).not.toBe(b.clubsWorked);
   });
 });
 
@@ -94,9 +85,6 @@ describe("trackman payload", () => {
       durationMin: "45",
       rating: 4,
       recap: "  Solid session  ",
-      // A stale/deep-linked focus tag must not reach a trackman payload (§4a —
-      // Clubs Used replaces Focus Areas for this type).
-      focus: new Set(["driver"]),
       fields: fields({ facility: " Oak Brook GC ", surface: "Mat", ball: "  " }),
     });
     expect(body).toEqual({
@@ -122,7 +110,6 @@ describe("trackman payload", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
     });
     expect(body).toEqual({
@@ -148,7 +135,6 @@ describe("trackman payload", () => {
       durationMin: "abc",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
     });
     expect(body.duration_min).toBeNull();
@@ -163,7 +149,6 @@ describe("grass_range payload", () => {
       durationMin: "90",
       rating: 3,
       recap: "Struck it pure",
-      focus: new Set(),
       fields: fields({ location: "Diversey Range", conditions: " Windy off the right " }),
     });
     expect(body).toEqual({
@@ -189,7 +174,6 @@ describe("grass_range payload", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
     });
     expect(body.surface).toBe("grass");
@@ -204,121 +188,9 @@ describe("grass_range payload", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields({ conditions: "Calm" }),
     });
     expect(body.recap_md).toBe("Conditions: Calm");
-  });
-});
-
-describe("short_game payload", () => {
-  it("area select auto-adds its focus tag; lag/upDown become metrics in order", () => {
-    const body = buildSaveBody({
-      type: "short_game",
-      date: "2026-07-09",
-      durationMin: "30",
-      rating: 5,
-      recap: "Bunker day",
-      focus: new Set(["chipping"]),
-      fields: fields({ sgArea: "bunker", lagIn3ft: "70", upDown: "50" }),
-    });
-    expect(body).toEqual({
-      date: "2026-07-09",
-      type: "short_game",
-      location: null,
-      surface: null,
-      ball: null,
-      duration_min: 30,
-      overall_rating: 5,
-      recap_md: "Bunker day",
-      focusAreas: ["chipping", "bunker"],
-      metrics: [
-        { kind: "lag_in_3ft", value: 70 },
-        { kind: "up_and_down", value: 50 },
-      ],
-    });
-    expect(Object.keys(body)).toEqual(BODY_KEYS);
-  });
-
-  it("auto-tag does not duplicate an already-selected focus chip", () => {
-    const body = buildSaveBody({
-      type: "short_game",
-      date: "2026-07-09",
-      durationMin: "",
-      rating: 0,
-      recap: "",
-      focus: new Set(["lag_putting"]),
-      fields: fields({ sgArea: "putting_green" }),
-    });
-    expect(body.focusAreas).toEqual(["lag_putting"]);
-  });
-
-  it("non-numeric or blank metric inputs are skipped", () => {
-    const body = buildSaveBody({
-      type: "short_game",
-      date: "2026-07-09",
-      durationMin: "",
-      rating: 0,
-      recap: "",
-      focus: new Set(),
-      fields: fields({ sgArea: "chipping", lagIn3ft: "abc", upDown: "" }),
-    });
-    expect(body.metrics).toEqual([]);
-    expect(body.focusAreas).toEqual(["chipping"]);
-  });
-});
-
-describe("net payload", () => {
-  it("clubs + swing thought fold into the recap prefix; reps becomes a metric", () => {
-    const body = buildSaveBody({
-      type: "net",
-      date: "2026-07-09",
-      durationMin: "20",
-      rating: 2,
-      recap: "Felt good",
-      focus: new Set(),
-      fields: fields({ clubsWorked: ["Driver", "7i"], reps: "40", swingThought: " Shallower takeaway " }),
-    });
-    expect(body).toEqual({
-      date: "2026-07-09",
-      type: "net",
-      location: null,
-      surface: null,
-      ball: null,
-      duration_min: 20,
-      overall_rating: 2,
-      recap_md: "Clubs: Driver, 7i. Swing thought: Shallower takeaway.\nFelt good",
-      focusAreas: [],
-      metrics: [{ kind: "reps", value: 40 }],
-    });
-    expect(Object.keys(body)).toEqual(BODY_KEYS);
-  });
-
-  it("swing thought alone (no clubs) still prefixes the recap", () => {
-    const body = buildSaveBody({
-      type: "net",
-      date: "2026-07-09",
-      durationMin: "",
-      rating: 0,
-      recap: "Maintenance",
-      focus: new Set(),
-      fields: fields({ swingThought: "Tempo" }),
-    });
-    expect(body.recap_md).toBe("Swing thought: Tempo.\nMaintenance");
-  });
-
-  it("all-blank net form → recap_md null, no metrics", () => {
-    const body = buildSaveBody({
-      type: "net",
-      date: "2026-07-09",
-      durationMin: "",
-      rating: 0,
-      recap: "",
-      focus: new Set(),
-      fields: fields(),
-    });
-    expect(body.recap_md).toBeNull();
-    expect(body.metrics).toEqual([]);
   });
 });
 
@@ -347,7 +219,6 @@ describe("putting payload (drill blocks — Mission 4)", () => {
       durationMin: "40",
       rating: 4,
       recap: "Putting felt good",
-      focus: new Set(),
       fields: fields(),
       blocks: [gate, general],
     });
@@ -379,7 +250,6 @@ describe("putting payload (drill blocks — Mission 4)", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
       blocks: [general, gate],
     });
@@ -404,7 +274,6 @@ describe("putting payload (drill blocks — Mission 4)", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
       blocks: [lag],
     });
@@ -418,7 +287,6 @@ describe("putting payload (drill blocks — Mission 4)", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
     });
     expect(body.drillBlocks).toEqual([]);
@@ -446,7 +314,6 @@ describe("clubs used payload (Mission 5 — range forms)", () => {
       durationMin: "45",
       rating: 4,
       recap: "Good session",
-      focus: new Set(),
       fields: fields({ facility: "Oak Brook GC" }),
       clubRoster: roster,
       clubDrafts,
@@ -483,7 +350,6 @@ describe("clubs used payload (Mission 5 — range forms)", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
       clubRoster: roster,
       clubDrafts,
@@ -498,7 +364,6 @@ describe("clubs used payload (Mission 5 — range forms)", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
       clubRoster: roster,
       clubDrafts: { "7i": { shotShape: "", note: "" } },
@@ -513,32 +378,20 @@ describe("clubs used payload (Mission 5 — range forms)", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
     });
     expect(body.clubs).toEqual([]);
   });
 
-  it("short_game and putting never get a clubs key", () => {
-    const shortGame = buildSaveBody({
-      type: "short_game",
-      date: "2026-07-09",
-      durationMin: "",
-      rating: 0,
-      recap: "",
-      focus: new Set(),
-      fields: fields(),
-    });
+  it("putting never gets a clubs key", () => {
     const putting = buildSaveBody({
       type: "putting",
       date: "2026-07-09",
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
     });
-    expect(shortGame.clubs).toBeUndefined();
     expect(putting.clubs).toBeUndefined();
   });
 });
@@ -563,8 +416,6 @@ describe("around_green payload (Mission 6 — §4c)", () => {
       durationMin: "40",
       rating: 4,
       recap: "Tight lies clicked",
-      // A stale/deep-linked focus tag must not reach an around_green payload.
-      focus: new Set(["chipping"]),
       fields: fields(),
       lieTypes: ["tight", "short rough"],
       shotTypes: ["chipping", "flops"],
@@ -607,7 +458,6 @@ describe("around_green payload (Mission 6 — §4c)", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
       clubRoster: roster,
       clubDrafts: { "7i": { shotShape: "draw", note: "" } },
@@ -623,7 +473,6 @@ describe("around_green payload (Mission 6 — §4c)", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
       clubRoster: roster,
       clubDrafts: {
@@ -641,7 +490,6 @@ describe("around_green payload (Mission 6 — §4c)", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
       lieTypes: ["bunker", "tight", "not-a-lie"],
       shotTypes: ["flops", "chipping"],
@@ -657,7 +505,6 @@ describe("around_green payload (Mission 6 — §4c)", () => {
       durationMin: "",
       rating: 0,
       recap: "",
-      focus: new Set(),
       fields: fields(),
     });
     expect(body.lie_types).toEqual([]);
@@ -667,14 +514,13 @@ describe("around_green payload (Mission 6 — §4c)", () => {
   });
 
   it("no other type ever gets lie_types/shot_types keys", () => {
-    for (const type of ["trackman", "grass_range", "short_game", "net", "putting"] as const) {
+    for (const type of ["trackman", "grass_range", "putting"] as const) {
       const body = buildSaveBody({
         type,
         date: "2026-07-10",
         durationMin: "",
         rating: 0,
         recap: "",
-        focus: new Set(),
         fields: fields(),
         lieTypes: ["tight"],
         shotTypes: ["flops"],
@@ -687,8 +533,8 @@ describe("around_green payload (Mission 6 — §4c)", () => {
   });
 });
 
-describe("Focus Areas removal from range forms (§4a — Clubs Used replaces Focus Areas)", () => {
-  it("trackman/grass_range/around_green/putting: a selected focus tag never reaches the payload", () => {
+describe("Focus Areas + metrics retirement (Mission 7 — practice_focus/practice_metric frozen)", () => {
+  it("every type emits focusAreas: [] and metrics: [] — nothing writes the frozen tables", () => {
     for (const type of ["trackman", "grass_range", "around_green", "putting"] as const) {
       const body = buildSaveBody({
         type,
@@ -696,33 +542,10 @@ describe("Focus Areas removal from range forms (§4a — Clubs Used replaces Foc
         durationMin: "",
         rating: 0,
         recap: "",
-        focus: new Set(["driver", "chipping"]),
         fields: fields(),
       });
       expect(body.focusAreas, `${type} should never emit focus tags`).toEqual([]);
+      expect(body.metrics, `${type} should never emit metrics`).toEqual([]);
     }
-  });
-
-  it("short_game and net still emit a selected focus tag", () => {
-    const shortGame = buildSaveBody({
-      type: "short_game",
-      date: "2026-07-09",
-      durationMin: "",
-      rating: 0,
-      recap: "",
-      focus: new Set(["driver"]),
-      fields: fields({ sgArea: "putting_green" }),
-    });
-    const net = buildSaveBody({
-      type: "net",
-      date: "2026-07-09",
-      durationMin: "",
-      rating: 0,
-      recap: "",
-      focus: new Set(["driver"]),
-      fields: fields(),
-    });
-    expect(shortGame.focusAreas).toContain("driver");
-    expect(net.focusAreas).toContain("driver");
   });
 });

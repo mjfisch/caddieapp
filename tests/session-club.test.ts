@@ -108,9 +108,9 @@ describe.skipIf(!hasDb)("Mission 5 — Clubs Used round-trip", () => {
     fixtureSessionIds.splice(fixtureSessionIds.indexOf(id), 1);
   });
 
-  it("a short_game session's clubs never surface in listPracticeSessions (Clubs Used is range-only)", async () => {
+  it("a putting session's clubs never surface in listPracticeSessions (Clubs Used is range-only)", async () => {
     await runMigrations();
-    const { id } = await createPracticeSession({ date: "2026-07-09", type: "short_game" });
+    const { id } = await createPracticeSession({ date: "2026-07-09", type: "putting" });
     fixtureSessionIds.push(id);
     const sessions = await listPracticeSessions();
     const mine = sessions.find((s) => s.id === id)!;
