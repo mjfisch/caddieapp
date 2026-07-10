@@ -9,6 +9,8 @@ import {
   listValue,
   scalarValue,
   SHOT_SHAPES,
+  LIE_TYPES,
+  SHOT_TYPES,
   type FieldDef,
   type FieldValues,
   type SessionTypeId,
@@ -59,6 +61,8 @@ type Session = {
   overall_rating: number | null;
   recap_md: string | null;
   focusAreas: string[];
+  lieTypes?: string[];
+  shotTypes?: string[];
   blocks?: SessionBlock[];
   clubs?: SessionClub[];
 };
@@ -73,6 +77,7 @@ const PERSONAS: Persona[] = [
 const SESSION_TYPES = [
   { id: "trackman", label: "Trackman range", sub: "Map my bag · feeds dispersion", feeds: "data" },
   { id: "grass_range", label: "Grass range", sub: "Off turf · no LM data", feeds: "feel" },
+  { id: "around_green", label: "Around the green", sub: "Chip · pitch · flop · bunker", feeds: "feel" },
   { id: "short_game", label: "Short game", sub: "Chip · putt · bunker", feeds: "feel" },
   { id: "putting", label: "Putting", sub: "Drill blocks · lag & gate", feeds: "feel" },
   { id: "net", label: "Spornia net", sub: "Home · swing thoughts", feeds: "feel" },
@@ -106,6 +111,7 @@ const CONFIDENCE_COLOR: Record<string, string> = {
 const TYPE_LABEL: Record<string, string> = {
   trackman: "Trackman",
   grass_range: "Grass range",
+  around_green: "Around the green",
   short_game: "Short game",
   putting: "Putting",
   net: "Spornia net",
@@ -180,10 +186,13 @@ export default function PracticePage() {
   // Putting only: the ordered drill-block list + the drill catalog for its picker.
   const [blocks, setBlocks] = useState<DrillBlockDraft[]>([]);
   const [puttingDrills, setPuttingDrills] = useState<PuttingDrill[]>([]);
-  // Trackman + Grass Range only: Clubs Used chip row (Mission 5, §4a/§4b).
+  // Trackman + Grass Range + Around the Green: Clubs Used chip row (§4a/§4b/§4c).
   const [clubRoster, setClubRoster] = useState<ClubRosterEntry[]>([]);
   const [clubDrafts, setClubDrafts] = useState<SessionClubDrafts>({});
   const [expandedClub, setExpandedClub] = useState<string | null>(null);
+  // Around the Green only: the lie/shot tag rows (Mission 6, §4c).
+  const [lieTypes, setLieTypes] = useState<string[]>([]);
+  const [shotTypes, setShotTypes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -326,6 +335,10 @@ export default function PracticePage() {
     return next;
   }
 
+  function toggleTag(list: string[], value: string): string[] {
+    return list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
+  }
+
   // ── Clubs Used (Trackman + Grass Range) — tap to toggle, expand for detail ──
   function toggleClub(club: string) {
     setClubDrafts((prev) => {
@@ -360,6 +373,8 @@ export default function PracticePage() {
     setBlocks([]);
     setClubDrafts({});
     setExpandedClub(null);
+    setLieTypes([]);
+    setShotTypes([]);
   }
 
   async function saveSession() {
@@ -380,6 +395,8 @@ export default function PracticePage() {
       blocks,
       clubRoster,
       clubDrafts,
+      lieTypes,
+      shotTypes,
     });
 
     try {
@@ -549,6 +566,9 @@ export default function PracticePage() {
             onClick={() => {
               setType(t.id);
               setSaveOk(false);
+              // Collapse any open club detail — the next type may filter that club
+              // out of its chip row (around_green shows eligible clubs only).
+              setExpandedClub(null);
             }}
           >
             <span className={`pr-type-feeds ${t.feeds}`}>{t.feeds === "data" ? "→ bag" : "feel"}</span>
@@ -569,6 +589,12 @@ export default function PracticePage() {
           <p className="pr-form-note feel">
             Off real turf — no launch monitor, so this is feel only. It won&apos;t move your dispersion
             numbers, but it&apos;s gold for trust and contact.
+          </p>
+        )}
+        {type === "around_green" && (
+          <p className="pr-form-note feel">
+            Chips, pitches, flops, bunker work. Tag the clubs, lies, and shots you worked — no
+            percentages here; the feel goes in the recap.
           </p>
         )}
         {type === "short_game" && (
@@ -635,6 +661,35 @@ export default function PracticePage() {
             onShape={setClubShape}
             onNote={setClubNote}
           />
+        )}
+
+        {/* Around the Green (§4c) — the same Clubs Used chip row with two differences:
+            roster filtered to around_green_eligible (7i–LW64) and note-only expand
+            (no onShape — shot shape is a full-swing concept). Plus the lie/shot tag
+            rows. "bunker" appears in both on purpose: sand lie vs. explosion shot. */}
+        {type === "around_green" && (
+          <>
+            <ClubsUsed
+              roster={clubRoster.filter((c) => c.aroundGreenEligible)}
+              drafts={clubDrafts}
+              expanded={expandedClub}
+              onToggle={toggleClub}
+              onExpand={setExpandedClub}
+              onNote={setClubNote}
+            />
+            <TagChips
+              label="Lie types"
+              options={LIE_TYPES}
+              selected={lieTypes}
+              onToggle={(t) => setLieTypes((prev) => toggleTag(prev, t))}
+            />
+            <TagChips
+              label="Shot types"
+              options={SHOT_TYPES}
+              selected={shotTypes}
+              onToggle={(t) => setShotTypes((prev) => toggleTag(prev, t))}
+            />
+          </>
         )}
 
         {/* Trackman import bridge */}
@@ -811,7 +866,16 @@ export default function PracticePage() {
                         })}
                       </div>
                     )}
-                    {(s.type === "trackman" || s.type === "grass_range") && s.clubs && s.clubs.length > 0 && (
+                    {/* Around the Green — lie/shot tags, compactly: "tight · short rough — chipping · flops" */}
+                    {s.type === "around_green" &&
+                      ((s.lieTypes?.length ?? 0) > 0 || (s.shotTypes?.length ?? 0) > 0) && (
+                        <div className="pr-sess-sub">
+                          {[(s.lieTypes ?? []).join(" · "), (s.shotTypes ?? []).join(" · ")]
+                            .filter(Boolean)
+                            .join(" — ")}
+                        </div>
+                      )}
+                    {(s.type === "trackman" || s.type === "grass_range" || s.type === "around_green") && s.clubs && s.clubs.length > 0 && (
                       <div className="pr-sess-clubs">
                         <div className="pr-sess-clubs-line">
                           {s.clubs.map((c) => (c.shotShape ? `${c.club} (${c.shotShape})` : c.club)).join(" · ")}
@@ -1162,6 +1226,8 @@ function DrillBlocks({
 // affordance (▾/▲) that opens its collapsed-by-default detail — primary shot
 // shape (single-select) + a club note — mirroring Mission 4's drill-block
 // tag-then-expand pattern. A quick session is just tapping chips and saving.
+// Around the Green (§4c) reuses this with a filtered roster and NO onShape:
+// its expand is the note only (shot shape is a full-swing concept).
 function ClubsUsed({
   roster,
   drafts,
@@ -1176,7 +1242,7 @@ function ClubsUsed({
   expanded: string | null;
   onToggle: (club: string) => void;
   onExpand: (club: string | null) => void;
-  onShape: (club: string, shotShape: string) => void;
+  onShape?: (club: string, shotShape: string) => void;
   onNote: (club: string, note: string) => void;
 }) {
   return (
@@ -1214,21 +1280,23 @@ function ClubsUsed({
 
       {expanded && expanded in drafts && (
         <div className="pr-club-detail">
-          <div className="pr-field">
-            <label>{expanded} — shot shape</label>
-            <div className="pr-chips">
-              {SHOT_SHAPES.map((shape) => (
-                <button
-                  key={shape}
-                  type="button"
-                  className={`pr-chip${drafts[expanded]!.shotShape === shape ? " on" : ""}`}
-                  onClick={() => onShape(expanded, drafts[expanded]!.shotShape === shape ? "" : shape)}
-                >
-                  {shape}
-                </button>
-              ))}
+          {onShape && (
+            <div className="pr-field">
+              <label>{expanded} — shot shape</label>
+              <div className="pr-chips">
+                {SHOT_SHAPES.map((shape) => (
+                  <button
+                    key={shape}
+                    type="button"
+                    className={`pr-chip${drafts[expanded]!.shotShape === shape ? " on" : ""}`}
+                    onClick={() => onShape(expanded, drafts[expanded]!.shotShape === shape ? "" : shape)}
+                  >
+                    {shape}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           <textarea
             className="pr-textarea"
             value={drafts[expanded]!.note}
@@ -1237,6 +1305,39 @@ function ClubsUsed({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Lie / Shot tag rows (Mission 6, §4c) ─────────────────────────────────────
+// A plain multi-select chip row → a text[] tag array on the session. No expand,
+// no per-chip detail — the simplest of the bespoke chip widgets.
+function TagChips({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: readonly string[];
+  selected: string[];
+  onToggle: (tag: string) => void;
+}) {
+  return (
+    <div className="pr-field full">
+      <label>{label}</label>
+      <div className="pr-chips">
+        {options.map((o) => (
+          <button
+            key={o}
+            type="button"
+            className={`pr-chip${selected.includes(o) ? " on" : ""}`}
+            onClick={() => onToggle(o)}
+          >
+            {o}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

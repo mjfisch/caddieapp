@@ -12,7 +12,14 @@
 // Pure data + pure functions — no React, no I/O — so tests/form-fields.test.ts
 // can assert the exact POST body per type in the node test harness.
 
-export const SESSION_TYPE_IDS = ["trackman", "grass_range", "short_game", "net", "putting"] as const;
+export const SESSION_TYPE_IDS = [
+  "trackman",
+  "grass_range",
+  "short_game",
+  "around_green",
+  "net",
+  "putting",
+] as const;
 export type SessionTypeId = (typeof SESSION_TYPE_IDS)[number];
 
 /** Top-level practice_session columns a field can write into. */
@@ -204,6 +211,11 @@ export const FORM_FIELDS: Record<SessionTypeId, FieldDef[]> = {
       payload: { to: "recapPrefix", prefix: (raw) => (raw.trim() ? `Swing thought: ${raw.trim()}.` : null) },
     },
   ],
+  // Around the Green has NO scalar registry fields (§4c): shared fields plus three
+  // bespoke chip rows (clubs used, lie types, shot types) — and deliberately NO
+  // metric inputs (no Area dropdown, no percentage fields; measurement-structure
+  // is banned by spec principle 2). Assembled separately below (Mission 6).
+  around_green: [],
   // Putting has NO scalar registry fields: its structure is the ordered drill-block
   // list, a bespoke widget (like rating/chips), assembled separately below (§4d,
   // Mission 4). Shared fields (date/duration/rating/recap) stay universal.
@@ -345,6 +357,50 @@ export function buildSessionClubs(roster: ClubRosterEntry[], selected: SessionCl
     });
 }
 
+// ── Around the Green (§4c — bespoke chip rows, not FieldDefs) ──────────────────
+// Same tag-then-expand clubs chip row as the range forms, with two differences:
+// the roster is filtered to around_green_eligible clubs (7i through LW64), and
+// the per-club expand is the NOTE ONLY — shot shape is a full-swing concept and
+// never appears on (or leaks into) this form's payload.
+
+/** Lie tags (§4c). "bunker" here is the sand LIE. */
+export const LIE_TYPES = ["tight", "short rough", "deep rough", "bunker"] as const;
+/** Shot tags (§4c). "bunker" here is the explosion SHOT — a different axis than the lie. */
+export const SHOT_TYPES = ["chipping", "pitching", "flops", "bunker"] as const;
+
+/** The wire shape of one around-green tagged club — deliberately NO shotShape key (§4c). */
+export type AroundGreenClubPayload = {
+  club: string;
+  note: string | null;
+};
+
+/**
+ * Fold the selected-clubs map into the around-green wire payload: eligible clubs
+ * only (a stale draft tagged on a range form must not leak through a type
+ * switch), in bag order, note-only — any drafted shot shape is dropped with the
+ * ineligible clubs.
+ */
+export function buildAroundGreenClubs(
+  roster: ClubRosterEntry[],
+  selected: SessionClubDrafts,
+): AroundGreenClubPayload[] {
+  return roster
+    .filter((c) => c.aroundGreenEligible && Object.prototype.hasOwnProperty.call(selected, c.name))
+    .map((c) => {
+      const note = selected[c.name]!.note.trim();
+      return { club: c.name, note: note || null };
+    });
+}
+
+/**
+ * Normalize a chip selection to the canonical option order (and drop anything
+ * that isn't an option) — the wire arrays and the Recent Sessions line both
+ * read in row order regardless of tap order.
+ */
+function canonicalTags(options: readonly string[], selected: string[]): string[] {
+  return options.filter((o) => selected.includes(o));
+}
+
 // ── Save-payload assembly ──────────────────────────────────────────────────────
 
 export type SaveSessionBody = {
@@ -358,10 +414,14 @@ export type SaveSessionBody = {
   recap_md: string | null;
   focusAreas: string[];
   metrics: { kind: string; value: number }[];
+  /** Lie tags — present for around_green sessions only (§4c). */
+  lie_types?: string[];
+  /** Shot tags — present for around_green sessions only (§4c). */
+  shot_types?: string[];
   /** Ordered drill blocks — present for putting sessions only. */
   drillBlocks?: DrillBlockPayload[];
-  /** Clubs Used — present for trackman/grass_range sessions only. */
-  clubs?: SessionClubPayload[];
+  /** Clubs Used — trackman/grass_range carry shape+note rows; around_green carries note-only rows. */
+  clubs?: SessionClubPayload[] | AroundGreenClubPayload[];
 };
 
 /** Session types whose form still shows the Focus Areas chip row (§4a: "Clubs Used replaces Focus Areas"). */
@@ -388,6 +448,9 @@ export function buildSaveBody(input: {
   /** Clubs Used — the full active roster (for bag-order output) plus the current selections. Ignored for types that don't show the chip row. */
   clubRoster?: ClubRosterEntry[];
   clubDrafts?: SessionClubDrafts;
+  /** Around the Green lie/shot tags (ignored for other types). */
+  lieTypes?: string[];
+  shotTypes?: string[];
 }): SaveSessionBody {
   const { type, fields } = input;
   // Focus Areas chips only still exist for short_game/net (§4a) — a stale/deep-linked
@@ -450,6 +513,15 @@ export function buildSaveBody(input: {
   // types never get the `clubs` key, so their wire body is byte-for-byte unchanged.
   if (CLUBS_USED_TYPES.has(type)) {
     body.clubs = buildSessionClubs(input.clubRoster ?? [], input.clubDrafts ?? {});
+  }
+
+  // Around the Green alone carries the lie/shot tag arrays plus its note-only
+  // clubs rows (§4c). Empty selections still send empty arrays — a valid "none
+  // tagged". No metric keys, no focus tags, no shot shapes ever appear here.
+  if (type === "around_green") {
+    body.lie_types = canonicalTags(LIE_TYPES, input.lieTypes ?? []);
+    body.shot_types = canonicalTags(SHOT_TYPES, input.shotTypes ?? []);
+    body.clubs = buildAroundGreenClubs(input.clubRoster ?? [], input.clubDrafts ?? {});
   }
 
   return body;
