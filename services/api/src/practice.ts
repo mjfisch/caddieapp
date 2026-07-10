@@ -95,6 +95,21 @@ export type CreateDrillBlockInput = {
   values?: Array<{ metricDefId: string; value: number }>;
 };
 
+/** Primary shot shape (§4a/§4b/§5b) — one per club per session, optional. */
+export const SHOT_SHAPES = ["straight", "draw", "pull", "hook", "fade", "push", "slice"] as const;
+export type ShotShape = (typeof SHOT_SHAPES)[number];
+
+/**
+ * One tagged club in a range session (Mission 5, §4a/§4b/§5b). `club` matches
+ * `club.name`. shotShape/note are both optional — a selected club with neither
+ * still saves as a bare session_club row.
+ */
+export type SessionClubInput = {
+  club: string;
+  shotShape?: string | null;
+  note?: string | null;
+};
+
 export type CreatePracticeSessionInput = {
   date: string;
   type: PracticeSessionType;
@@ -109,6 +124,8 @@ export type CreatePracticeSessionInput = {
   metrics?: Array<{ kind: string; value: number }>;
   /** Ordered drill blocks — putting sessions only (§4d). */
   drillBlocks?: CreateDrillBlockInput[];
+  /** Clubs Used — Trackman + Grass Range sessions (Mission 5, §4a/§4b). */
+  clubs?: SessionClubInput[];
 };
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
@@ -205,6 +222,22 @@ export async function createPracticeSession(
       }
     }
 
+    // Clubs Used (§5b) — one row per tagged club; a selected club with no shape
+    // or note still inserts a bare row (it records that the club was worked).
+    // An invalid shot_shape is dropped rather than failing the whole session —
+    // the DB CHECK would otherwise 500 the entire save over one bad enum value.
+    for (const c of input.clubs ?? []) {
+      if (!c || typeof c.club !== "string" || c.club.trim() === "") continue;
+      const shotShape =
+        typeof c.shotShape === "string" && (SHOT_SHAPES as readonly string[]).includes(c.shotShape)
+          ? c.shotShape
+          : null;
+      await client.query(
+        "INSERT INTO session_club (practice_session_id, club, shot_shape, note) VALUES ($1, $2, $3, $4)",
+        [id, c.club.trim(), shotShape, c.note?.trim() ? c.note.trim() : null],
+      );
+    }
+
     await client.query("COMMIT");
     return { id };
   } catch (err) {
@@ -227,6 +260,13 @@ export type SessionDrillBlockView = {
   metrics: Array<{ label: string; unit: string | null; value: number }>;
 };
 
+/** One tagged club rolled up for display (Recent Sessions clubs line, Mission 5). */
+export type SessionClubView = {
+  club: string;
+  shotShape: string | null;
+  note: string | null;
+};
+
 export type PracticeSessionRow = {
   id: string;
   date: string;
@@ -241,6 +281,8 @@ export type PracticeSessionRow = {
   focusAreas: string[];
   /** Ordered drill blocks — populated for putting sessions only (empty otherwise). */
   blocks: SessionDrillBlockView[];
+  /** Clubs Used, in bag order — populated for trackman/grass_range only (empty otherwise). */
+  clubs: SessionClubView[];
 };
 
 /** All sessions, newest first, each with its focus-area tags rolled up. */
@@ -311,6 +353,32 @@ export async function listPracticeSessions(
     }
   }
 
+  // Third pass: Clubs Used (§5b) for trackman/grass_range sessions only, ordered
+  // by the club roster's bag order (sort_order) so the Recent Sessions clubs line
+  // always reads in bag order regardless of tag order.
+  const rangeIds = rows.filter((r) => r.type === "trackman" || r.type === "grass_range").map((r) => r.id);
+  const clubsBySession = new Map<string, SessionClubView[]>();
+  if (rangeIds.length > 0) {
+    const { rows: clubRows } = await pool.query<{
+      practice_session_id: string;
+      club: string;
+      shot_shape: string | null;
+      note: string | null;
+    }>(
+      `SELECT sc.practice_session_id, sc.club, sc.shot_shape, sc.note
+         FROM session_club sc
+         LEFT JOIN club c ON c.name = sc.club
+        WHERE sc.practice_session_id = ANY($1::uuid[])
+        ORDER BY sc.practice_session_id, c.sort_order NULLS LAST, sc.club`,
+      [rangeIds],
+    );
+    for (const cr of clubRows) {
+      const list = clubsBySession.get(cr.practice_session_id) ?? [];
+      list.push({ club: cr.club, shotShape: cr.shot_shape, note: cr.note });
+      clubsBySession.set(cr.practice_session_id, list);
+    }
+  }
+
   return rows.map((r) => ({
     id: r.id,
     date: r.date,
@@ -324,6 +392,7 @@ export async function listPracticeSessions(
     linked_shot_session: r.linked_shot_session,
     focusAreas: r.focus_areas ?? [],
     blocks: blocksBySession.get(r.id) ?? [],
+    clubs: clubsBySession.get(r.id) ?? [],
   }));
 }
 
@@ -410,6 +479,38 @@ export async function listPuttingDrills(deps: PracticeDeps = {}): Promise<Puttin
     isSystem: r.is_system,
     sortOrder: r.sort_order,
     metricDefs: r.metric_defs ?? [],
+  }));
+}
+
+// ── Club roster (Clubs Used chip row, §5a) ──────────────────────────────────
+
+/** One active bag club as the Clubs Used chip row renders it. */
+export type ClubRosterView = {
+  name: string;
+  sortOrder: number | null;
+  aroundGreenEligible: boolean;
+};
+
+/**
+ * Active (non-archived) clubs, in bag order (§5a). The full bag for the
+ * Trackman/Grass Range "Clubs used" chip row (Mission 5).
+ */
+export async function listActiveClubs(deps: PracticeDeps = {}): Promise<ClubRosterView[]> {
+  const pool = deps.pool ?? getPool();
+  const { rows } = await pool.query<{
+    name: string;
+    sort_order: number | null;
+    around_green_eligible: boolean;
+  }>(
+    `SELECT name, sort_order, around_green_eligible
+       FROM club
+      WHERE archived = false
+      ORDER BY sort_order NULLS LAST, name`,
+  );
+  return rows.map((r) => ({
+    name: r.name,
+    sortOrder: r.sort_order,
+    aroundGreenEligible: r.around_green_eligible,
   }));
 }
 

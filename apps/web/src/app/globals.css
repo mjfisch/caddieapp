@@ -1058,6 +1058,20 @@ a:hover { text-decoration: underline; }
 .pr-sess-block-t { font-weight: 600; color: var(--text); }
 .pr-sess-block-m { color: var(--muted); }
 
+/* Clubs Used (Mission 5) — tag-then-expand chip row on Trackman/Grass Range. */
+.pr-club-pill { display: inline-flex; align-items: center; gap: 3px; }
+.pr-club-expand {
+  min-width: 28px; min-height: 28px; border: 1px solid var(--line); border-radius: 8px;
+  background: transparent; color: var(--muted); font-size: 11px; cursor: pointer;
+}
+.pr-club-expand:hover { border-color: var(--green-dim, #2f7f57); color: var(--green); }
+.pr-club-detail {
+  margin-top: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+  display: flex; flex-direction: column; gap: 10px; background: rgba(255, 255, 255, 0.015);
+}
+.pr-sess-clubs { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+.pr-sess-clubs-line { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.4; }
+
 /* Dual-confidence panel. */
 .pr-conf-help { font-size: 12px; color: var(--muted); margin: 0 4px 10px; line-height: 1.45; }
 .pr-conf {
