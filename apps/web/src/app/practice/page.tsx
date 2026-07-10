@@ -8,11 +8,14 @@ import {
   initialFieldValues,
   listValue,
   scalarValue,
+  SHOT_SHAPES,
   type FieldDef,
   type FieldValues,
   type SessionTypeId,
   type PuttingDrill,
   type DrillBlockDraft,
+  type ClubRosterEntry,
+  type SessionClubDrafts,
 } from "./formFields";
 
 // Practice tab (Phase 4.5) — the input side of the Capt. 69 OS loop. CLIENT code:
@@ -42,6 +45,11 @@ type SessionBlock = {
   note: string | null;
   metrics: { label: string; unit: string | null; value: number }[];
 };
+type SessionClub = {
+  club: string;
+  shotShape: string | null;
+  note: string | null;
+};
 type Session = {
   id: string;
   date: string;
@@ -52,6 +60,7 @@ type Session = {
   recap_md: string | null;
   focusAreas: string[];
   blocks?: SessionBlock[];
+  clubs?: SessionClub[];
 };
 
 const PERSONAS: Persona[] = [
@@ -171,6 +180,10 @@ export default function PracticePage() {
   // Putting only: the ordered drill-block list + the drill catalog for its picker.
   const [blocks, setBlocks] = useState<DrillBlockDraft[]>([]);
   const [puttingDrills, setPuttingDrills] = useState<PuttingDrill[]>([]);
+  // Trackman + Grass Range only: Clubs Used chip row (Mission 5, §4a/§4b).
+  const [clubRoster, setClubRoster] = useState<ClubRosterEntry[]>([]);
+  const [clubDrafts, setClubDrafts] = useState<SessionClubDrafts>({});
+  const [expandedClub, setExpandedClub] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -238,11 +251,23 @@ export default function PracticePage() {
     }
   }, []);
 
+  const loadClubs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/practice/clubs");
+      if (!res.ok) return;
+      const j = (await res.json()) as { clubs: ClubRosterEntry[] };
+      setClubRoster(j.clubs ?? []);
+    } catch {
+      /* leave the chip row empty on failure */
+    }
+  }, []);
+
   useEffect(() => {
     void loadConfidence();
     void loadSessions();
     void loadDrills();
-  }, [loadConfidence, loadSessions, loadDrills]);
+    void loadClubs();
+  }, [loadConfidence, loadSessions, loadDrills, loadClubs]);
 
   // ── Coach: POST + stream ──
   async function getPlan() {
@@ -301,6 +326,27 @@ export default function PracticePage() {
     return next;
   }
 
+  // ── Clubs Used (Trackman + Grass Range) — tap to toggle, expand for detail ──
+  function toggleClub(club: string) {
+    setClubDrafts((prev) => {
+      if (club in prev) {
+        const next = { ...prev };
+        delete next[club];
+        return next;
+      }
+      return { ...prev, [club]: { shotShape: "", note: "" } };
+    });
+    setExpandedClub((prev) => (prev === club ? null : prev));
+  }
+
+  function setClubShape(club: string, shotShape: string) {
+    setClubDrafts((prev) => (club in prev ? { ...prev, [club]: { ...prev[club]!, shotShape } } : prev));
+  }
+
+  function setClubNote(club: string, note: string) {
+    setClubDrafts((prev) => (club in prev ? { ...prev, [club]: { ...prev[club]!, note } } : prev));
+  }
+
   function setField(key: string, value: string | string[]) {
     setFields((prev) => ({ ...prev, [key]: value }));
   }
@@ -312,6 +358,8 @@ export default function PracticePage() {
     setFocus(new Set());
     setFields(initialFieldValues());
     setBlocks([]);
+    setClubDrafts({});
+    setExpandedClub(null);
   }
 
   async function saveSession() {
@@ -321,7 +369,18 @@ export default function PracticePage() {
 
     // Per-type body assembly is registry-driven; the shape is pinned by
     // tests/form-fields.test.ts to the pre-registry hand-written version.
-    const body = buildSaveBody({ type, date, durationMin, rating, recap, focus, fields, blocks });
+    const body = buildSaveBody({
+      type,
+      date,
+      durationMin,
+      rating,
+      recap,
+      focus,
+      fields,
+      blocks,
+      clubRoster,
+      clubDrafts,
+    });
 
     try {
       const res = await fetch("/api/practice/sessions", {
@@ -565,6 +624,19 @@ export default function PracticePage() {
           <DrillBlocks blocks={blocks} drills={puttingDrills} onChange={setBlocks} />
         )}
 
+        {/* Trackman + Grass Range — bespoke Clubs Used chip row (§4a/§4b, replaces Focus Areas) */}
+        {(type === "trackman" || type === "grass_range") && (
+          <ClubsUsed
+            roster={clubRoster}
+            drafts={clubDrafts}
+            expanded={expandedClub}
+            onToggle={toggleClub}
+            onExpand={setExpandedClub}
+            onShape={setClubShape}
+            onNote={setClubNote}
+          />
+        )}
+
         {/* Trackman import bridge */}
         {type === "trackman" && (
           <div className="pr-import">
@@ -593,24 +665,28 @@ export default function PracticePage() {
           </div>
         </div>
 
-        <div className="pr-field">
-          <label>Focus areas</label>
-          <div className="pr-chips">
-            {FOCUS_OPTIONS.map((f) => (
-              <button
-                key={f.area}
-                type="button"
-                className={`pr-chip${focus.has(f.area) ? " on" : ""}${focusHighlight === f.area ? " focus-from-recap" : ""}`}
-                onClick={() => {
-                  setFocus((s) => toggle(s, f.area));
-                  if (focusHighlight === f.area) setFocusHighlight(null);
-                }}
-              >
-                {f.label}
-              </button>
-            ))}
+        {/* Focus Areas — Clubs Used replaces this for trackman/grass_range/putting (§4a).
+            Kept only for short_game/net until their own cleanup mission. */}
+        {(type === "short_game" || type === "net") && (
+          <div className="pr-field">
+            <label>Focus areas</label>
+            <div className="pr-chips">
+              {FOCUS_OPTIONS.map((f) => (
+                <button
+                  key={f.area}
+                  type="button"
+                  className={`pr-chip${focus.has(f.area) ? " on" : ""}${focusHighlight === f.area ? " focus-from-recap" : ""}`}
+                  onClick={() => {
+                    setFocus((s) => toggle(s, f.area));
+                    if (focusHighlight === f.area) setFocusHighlight(null);
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="pr-field">
           <label htmlFor="pr-recap">Recap &amp; feels</label>
@@ -733,6 +809,24 @@ export default function PracticePage() {
                             </div>
                           );
                         })}
+                      </div>
+                    )}
+                    {(s.type === "trackman" || s.type === "grass_range") && s.clubs && s.clubs.length > 0 && (
+                      <div className="pr-sess-clubs">
+                        <div className="pr-sess-clubs-line">
+                          {s.clubs.map((c) => (c.shotShape ? `${c.club} (${c.shotShape})` : c.club)).join(" · ")}
+                        </div>
+                        {s.clubs
+                          .filter((c) => c.note)
+                          .map((c, i) => {
+                            const noteFull = c.note ?? "";
+                            const noteClip = noteFull.length > 100 ? `${noteFull.slice(0, 100)}…` : noteFull;
+                            return (
+                              <div key={i} className={`pr-sess-sub${open ? "" : " clip"}`}>
+                                <b>{c.club}:</b> {open ? noteFull : noteClip}
+                              </div>
+                            );
+                          })}
                       </div>
                     )}
                     {recapFull && (
@@ -1058,6 +1152,91 @@ function DrillBlocks({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Clubs Used (Mission 5) ───────────────────────────────────────────────────
+// Trackman + Grass Range's replacement for Focus Areas (§4a/§4b): the full bag,
+// in bag order, as tap-to-toggle chips. A selected chip gains an expand
+// affordance (▾/▲) that opens its collapsed-by-default detail — primary shot
+// shape (single-select) + a club note — mirroring Mission 4's drill-block
+// tag-then-expand pattern. A quick session is just tapping chips and saving.
+function ClubsUsed({
+  roster,
+  drafts,
+  expanded,
+  onToggle,
+  onExpand,
+  onShape,
+  onNote,
+}: {
+  roster: ClubRosterEntry[];
+  drafts: SessionClubDrafts;
+  expanded: string | null;
+  onToggle: (club: string) => void;
+  onExpand: (club: string | null) => void;
+  onShape: (club: string, shotShape: string) => void;
+  onNote: (club: string, note: string) => void;
+}) {
+  return (
+    <div className="pr-field full">
+      <label>Clubs used</label>
+      <div className="pr-chips">
+        {roster.map((c) => {
+          const selected = c.name in drafts;
+          const isOpen = expanded === c.name;
+          return (
+            <div key={c.name} className="pr-club-pill">
+              <button
+                type="button"
+                className={`pr-chip${selected ? " on" : ""}`}
+                onClick={() => onToggle(c.name)}
+              >
+                {c.name}
+              </button>
+              {selected && (
+                <button
+                  type="button"
+                  className="pr-club-expand"
+                  aria-label={`${isOpen ? "Collapse" : "Expand"} ${c.name} detail`}
+                  aria-expanded={isOpen}
+                  onClick={() => onExpand(isOpen ? null : c.name)}
+                >
+                  {isOpen ? "▲" : "▾"}
+                </button>
+              )}
+            </div>
+          );
+        })}
+        {roster.length === 0 && <p className="pr-empty">Loading the bag…</p>}
+      </div>
+
+      {expanded && expanded in drafts && (
+        <div className="pr-club-detail">
+          <div className="pr-field">
+            <label>{expanded} — shot shape</label>
+            <div className="pr-chips">
+              {SHOT_SHAPES.map((shape) => (
+                <button
+                  key={shape}
+                  type="button"
+                  className={`pr-chip${drafts[expanded]!.shotShape === shape ? " on" : ""}`}
+                  onClick={() => onShape(expanded, drafts[expanded]!.shotShape === shape ? "" : shape)}
+                >
+                  {shape}
+                </button>
+              ))}
+            </div>
+          </div>
+          <textarea
+            className="pr-textarea"
+            value={drafts[expanded]!.note}
+            onChange={(e) => onNote(expanded, e.target.value)}
+            placeholder={`Note on the ${expanded} (optional)`}
+          />
+        </div>
+      )}
     </div>
   );
 }

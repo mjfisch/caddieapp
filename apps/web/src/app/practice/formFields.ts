@@ -295,6 +295,56 @@ export function buildDrillBlocks(blocks: DrillBlockDraft[]): DrillBlockPayload[]
   }));
 }
 
+// ── Clubs Used (Trackman + Grass Range — bespoke widget, not a FieldDef) ───────
+// The tag-then-expand pattern from Mission 4's drill blocks, applied to the fixed
+// bag roster instead of an ordered list: tap a chip to toggle a club on/off; a
+// selected chip gains an expand affordance for its optional shot shape + note.
+
+/** Primary shot shape (§4a/§4b) — single-select, one per club per session, optional. */
+export const SHOT_SHAPES = ["straight", "draw", "pull", "hook", "fade", "push", "slice"] as const;
+export type ShotShape = (typeof SHOT_SHAPES)[number];
+
+/** One active bag club, as delivered by GET /api/practice/clubs, in bag order. */
+export type ClubRosterEntry = {
+  name: string;
+  sortOrder: number | null;
+  aroundGreenEligible: boolean;
+};
+
+/** A selected club's collapsed-by-default detail (shot shape + note), keyed by club name. */
+export type SessionClubDraft = {
+  shotShape: string;
+  note: string;
+};
+
+/** Selected clubs for the session, keyed by club name (bag order comes from the roster, not this map). */
+export type SessionClubDrafts = Record<string, SessionClubDraft>;
+
+/** The wire shape of one tagged club. */
+export type SessionClubPayload = {
+  club: string;
+  shotShape: string | null;
+  note: string | null;
+};
+
+/**
+ * Fold the selected-clubs map into its wire payload, in bag-roster order (not
+ * selection order) — the Recent Sessions clubs line and the payload both read
+ * in bag order. A selected club with no shape/note still emits a bare row.
+ */
+export function buildSessionClubs(roster: ClubRosterEntry[], selected: SessionClubDrafts): SessionClubPayload[] {
+  return roster
+    .filter((c) => Object.prototype.hasOwnProperty.call(selected, c.name))
+    .map((c) => {
+      const d = selected[c.name]!;
+      return {
+        club: c.name,
+        shotShape: d.shotShape ? d.shotShape : null,
+        note: d.note.trim() ? d.note.trim() : null,
+      };
+    });
+}
+
 // ── Save-payload assembly ──────────────────────────────────────────────────────
 
 export type SaveSessionBody = {
@@ -310,7 +360,15 @@ export type SaveSessionBody = {
   metrics: { kind: string; value: number }[];
   /** Ordered drill blocks — present for putting sessions only. */
   drillBlocks?: DrillBlockPayload[];
+  /** Clubs Used — present for trackman/grass_range sessions only. */
+  clubs?: SessionClubPayload[];
 };
+
+/** Session types whose form still shows the Focus Areas chip row (§4a: "Clubs Used replaces Focus Areas"). */
+const FOCUS_CHIP_TYPES: ReadonlySet<SessionTypeId> = new Set(["short_game", "net"]);
+
+/** Session types whose form shows the Clubs Used chip row. */
+const CLUBS_USED_TYPES: ReadonlySet<SessionTypeId> = new Set(["trackman", "grass_range"]);
 
 /**
  * Assemble the POST /api/practice/sessions body from universal inputs plus the
@@ -327,9 +385,14 @@ export function buildSaveBody(input: {
   fields: FieldValues;
   /** Putting drill blocks (ignored for other types). */
   blocks?: DrillBlockDraft[];
+  /** Clubs Used — the full active roster (for bag-order output) plus the current selections. Ignored for types that don't show the chip row. */
+  clubRoster?: ClubRosterEntry[];
+  clubDrafts?: SessionClubDrafts;
 }): SaveSessionBody {
   const { type, fields } = input;
-  const focusAreas = new Set(input.focus);
+  // Focus Areas chips only still exist for short_game/net (§4a) — a stale/deep-linked
+  // focus selection must not leak into a trackman/grass_range/putting payload.
+  const focusAreas = new Set(FOCUS_CHIP_TYPES.has(type) ? input.focus : []);
   const metrics: { kind: string; value: number }[] = [];
   const columns: Record<ColumnKey, string | null> = { location: null, surface: null, ball: null };
   const recapParts: string[] = [];
@@ -381,6 +444,12 @@ export function buildSaveBody(input: {
   // get the `drillBlocks` key, so their wire body is byte-for-byte unchanged.
   if (type === "putting") {
     body.drillBlocks = buildDrillBlocks(input.blocks ?? []);
+  }
+
+  // Trackman/Grass Range alone carry Clubs Used (the bespoke widget). Other
+  // types never get the `clubs` key, so their wire body is byte-for-byte unchanged.
+  if (CLUBS_USED_TYPES.has(type)) {
+    body.clubs = buildSessionClubs(input.clubRoster ?? [], input.clubDrafts ?? {});
   }
 
   return body;

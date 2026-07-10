@@ -5,6 +5,8 @@ import {
   initialFieldValues,
   type FieldValues,
   type DrillBlockDraft,
+  type ClubRosterEntry,
+  type SessionClubDrafts,
 } from "../apps/web/src/app/practice/formFields";
 
 // =============================================================
@@ -87,6 +89,8 @@ describe("trackman payload", () => {
       durationMin: "45",
       rating: 4,
       recap: "  Solid session  ",
+      // A stale/deep-linked focus tag must not reach a trackman payload (§4a —
+      // Clubs Used replaces Focus Areas for this type).
       focus: new Set(["driver"]),
       fields: fields({ facility: " Oak Brook GC ", surface: "Mat", ball: "  " }),
     });
@@ -99,10 +103,11 @@ describe("trackman payload", () => {
       duration_min: 45,
       overall_rating: 4,
       recap_md: "Solid session",
-      focusAreas: ["driver"],
+      focusAreas: [],
       metrics: [],
+      clubs: [],
     });
-    expect(Object.keys(body)).toEqual(BODY_KEYS);
+    expect(Object.keys(body)).toEqual([...BODY_KEYS, "clubs"]);
   });
 
   it("all-blank form → all-null optionals, empty arrays", () => {
@@ -126,8 +131,9 @@ describe("trackman payload", () => {
       recap_md: null,
       focusAreas: [],
       metrics: [],
+      clubs: [],
     });
-    expect(Object.keys(body)).toEqual(BODY_KEYS);
+    expect(Object.keys(body)).toEqual([...BODY_KEYS, "clubs"]);
   });
 
   it("non-numeric duration → null", () => {
@@ -166,8 +172,9 @@ describe("grass_range payload", () => {
       recap_md: "Conditions: Windy off the right\nStruck it pure",
       focusAreas: [],
       metrics: [],
+      clubs: [],
     });
-    expect(Object.keys(body)).toEqual(BODY_KEYS);
+    expect(Object.keys(body)).toEqual([...BODY_KEYS, "clubs"]);
   });
 
   it("no conditions and no recap → recap_md null; surface still 'grass'", () => {
@@ -410,5 +417,163 @@ describe("putting payload (drill blocks — Mission 4)", () => {
       fields: fields(),
     });
     expect(body.drillBlocks).toEqual([]);
+  });
+});
+
+describe("clubs used payload (Mission 5 — range forms)", () => {
+  // Bag order: driver, 3h, 5h, 4i, 6i, 7i, 8i, 9i, PW, GW50, SW54, LW60, LW64.
+  // Only a slice is needed for these fixtures.
+  const roster: ClubRosterEntry[] = [
+    { name: "driver", sortOrder: 0, aroundGreenEligible: false },
+    { name: "3h", sortOrder: 1, aroundGreenEligible: false },
+    { name: "7i", sortOrder: 5, aroundGreenEligible: true },
+    { name: "PW", sortOrder: 8, aroundGreenEligible: true },
+  ];
+
+  it("trackman: two tagged clubs (one shape+note, one bare) — exact wire body", () => {
+    const clubDrafts: SessionClubDrafts = {
+      driver: { shotShape: "fade", note: "  Started it at the left bunker  " },
+      "7i": { shotShape: "draw", note: "" },
+    };
+    const body = buildSaveBody({
+      type: "trackman",
+      date: "2026-07-09",
+      durationMin: "45",
+      rating: 4,
+      recap: "Good session",
+      focus: new Set(),
+      fields: fields({ facility: "Oak Brook GC" }),
+      clubRoster: roster,
+      clubDrafts,
+    });
+    expect(body).toEqual({
+      date: "2026-07-09",
+      type: "trackman",
+      location: "Oak Brook GC",
+      surface: null,
+      ball: null,
+      duration_min: 45,
+      overall_rating: 4,
+      recap_md: "Good session",
+      focusAreas: [],
+      metrics: [],
+      clubs: [
+        { club: "driver", shotShape: "fade", note: "Started it at the left bunker" },
+        { club: "7i", shotShape: "draw", note: null },
+      ],
+    });
+    // clubs is the one extra key, appended after the shared body — same pattern as drillBlocks.
+    expect(Object.keys(body)).toEqual([...BODY_KEYS, "clubs"]);
+  });
+
+  it("trackman: clubs render in bag order regardless of tag order", () => {
+    const clubDrafts: SessionClubDrafts = {
+      PW: { shotShape: "", note: "" },
+      driver: { shotShape: "", note: "" },
+      "3h": { shotShape: "", note: "" },
+    };
+    const body = buildSaveBody({
+      type: "trackman",
+      date: "2026-07-09",
+      durationMin: "",
+      rating: 0,
+      recap: "",
+      focus: new Set(),
+      fields: fields(),
+      clubRoster: roster,
+      clubDrafts,
+    });
+    expect(body.clubs!.map((c) => c.club)).toEqual(["driver", "3h", "PW"]);
+  });
+
+  it("grass_range: a bare tagged club (no shape, no note) still saves as a row", () => {
+    const body = buildSaveBody({
+      type: "grass_range",
+      date: "2026-07-09",
+      durationMin: "",
+      rating: 0,
+      recap: "",
+      focus: new Set(),
+      fields: fields(),
+      clubRoster: roster,
+      clubDrafts: { "7i": { shotShape: "", note: "" } },
+    });
+    expect(body.clubs).toEqual([{ club: "7i", shotShape: null, note: null }]);
+  });
+
+  it("no clubs tagged → an empty clubs array (key still present for trackman/grass_range)", () => {
+    const body = buildSaveBody({
+      type: "trackman",
+      date: "2026-07-09",
+      durationMin: "",
+      rating: 0,
+      recap: "",
+      focus: new Set(),
+      fields: fields(),
+    });
+    expect(body.clubs).toEqual([]);
+  });
+
+  it("short_game and putting never get a clubs key", () => {
+    const shortGame = buildSaveBody({
+      type: "short_game",
+      date: "2026-07-09",
+      durationMin: "",
+      rating: 0,
+      recap: "",
+      focus: new Set(),
+      fields: fields(),
+    });
+    const putting = buildSaveBody({
+      type: "putting",
+      date: "2026-07-09",
+      durationMin: "",
+      rating: 0,
+      recap: "",
+      focus: new Set(),
+      fields: fields(),
+    });
+    expect(shortGame.clubs).toBeUndefined();
+    expect(putting.clubs).toBeUndefined();
+  });
+});
+
+describe("Focus Areas removal from range forms (§4a — Clubs Used replaces Focus Areas)", () => {
+  it("trackman/grass_range/putting: a selected focus tag never reaches the payload", () => {
+    for (const type of ["trackman", "grass_range", "putting"] as const) {
+      const body = buildSaveBody({
+        type,
+        date: "2026-07-09",
+        durationMin: "",
+        rating: 0,
+        recap: "",
+        focus: new Set(["driver", "chipping"]),
+        fields: fields(),
+      });
+      expect(body.focusAreas, `${type} should never emit focus tags`).toEqual([]);
+    }
+  });
+
+  it("short_game and net still emit a selected focus tag", () => {
+    const shortGame = buildSaveBody({
+      type: "short_game",
+      date: "2026-07-09",
+      durationMin: "",
+      rating: 0,
+      recap: "",
+      focus: new Set(["driver"]),
+      fields: fields({ sgArea: "putting_green" }),
+    });
+    const net = buildSaveBody({
+      type: "net",
+      date: "2026-07-09",
+      durationMin: "",
+      rating: 0,
+      recap: "",
+      focus: new Set(["driver"]),
+      fields: fields(),
+    });
+    expect(shortGame.focusAreas).toContain("driver");
+    expect(net.focusAreas).toContain("driver");
   });
 });
