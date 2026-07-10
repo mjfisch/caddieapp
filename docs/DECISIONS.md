@@ -68,3 +68,61 @@ Name-level rebrand only — strings, metadata, and docs. No schema change, no be
 - **Interim mark.** A minimal SVG favicon/app icon: a thin circle outline in the accent green containing "69" in the house mono font (JetBrains Mono Bold glyph outlines, so no font dependency at render time) on the navy background — the scorecard circled-number = under-par notation. Files: `capt69-favicon.svg`, `capt69-icon.svg`; `favicon-32.png` / `favicon-180.png` re-rendered from the same mark. A refined logo replaces it later.
 - **Theme, colors, layout: unchanged.**
 - **Deliberately NOT renamed:** the GitHub repo, the `@gai/*` package scopes, anything in the database, persona definitions, and any file path that ripples through imports — invisible plumbing, not worth the import churn. Historical D-entries above keep the old name; this entry records the rename.
+
+## D18 — Play tab retired (RESOLVED, 2026-07-10, Stats redesign S1)
+
+All Play tab UI, routes, and live-round components are removed. On-course/GPS functionality is out of scope indefinitely. See `docs/MJF_Golf_Stats_Tab_Design_Decisions_v1.md` for the governing design session.
+
+- **The `course` and `hole` tables behind Play are retained and extended** — par-per-hole feeds every derived Stats figure, so the schema Play stood up survives the teardown.
+- **The two existing test rounds (Jun 5, Jun 13, `is_test = true`) are excluded from all Stats queries;** delete or keep them at teardown discretion.
+- **`hole_feature` (v1 polygon-era) is confirmed dead or dropped during the teardown inventory** — its status is established in S1 before S2 touches it.
+
+## D19 — Plan tab pivots to coaching surface (RESOLVED, 2026-07-10, Stats redesign S1)
+
+The yardage book is retired. Plan's new mandate: surface game weaknesses, interpret Stats tab data into practice direction, and recommend drills (absorbing the drill-library redesign already on the board).
+
+- **The narrative layer deliberately kept out of Stats** (detonator chain, press-and-compound pattern, benchmarking) lives here.
+- **Design deferred to its own session after Stats ships** — Plan cannot interpret data that doesn't exist yet (S7).
+
+## D20 — Navigation reshape (RESOLVED, 2026-07-10, Stats redesign S1)
+
+Bottom nav becomes **Plan · Stats · Practice · Bag** (Stats takes Play's slot). Home screen: the "Open the yardage book" and "Play a round" cards are removed, replaced by a Stats card; the Practice card stays.
+
+## D21 — No in-app import flows, ever (RESOLVED, 2026-07-10, Stats redesign S1)
+
+The round-entry grid is never built. The inert "Import Trackman screenshots" button is removed from the Practice tab (retiring the largest engineering lift on the board).
+
+- **Both pipelines run through the Claude project instead:** the existing `mjf-trackman-shot-logger` skill for range data, and a new **`mjf-round-logger`** skill (built in the Claude project, not a Claude Code mission) that parses GolfLogix round screenshots plus the CDGA differential screenshot and emits one canonical round payload per round.
+
+## D22 — Data-as-code round sync (RESOLVED, 2026-07-10, Stats redesign S1)
+
+Rounds live in the repo as `data/rounds/*.json`, one file per round. A build-time manifest (mirroring the migration manifest) feeds an idempotent runtime sync that runs alongside `runMigrations()`.
+
+- **Idempotency:** already-imported rounds are skipped silently (keyed on `external_key`); malformed payloads **fail loudly** — never a silent no-op.
+- **The full loop:** play round → screenshots to Claude project → canonical JSON produced → handed to Claude Code → PR → merge → live on next page load.
+- **No `DATABASE_URL` required anywhere**, consistent with the cloud-session constraint. Round history becomes version-controlled in GitHub.
+
+## D23 — Differential is stored, never computed in-app (RESOLVED, 2026-07-10, Stats redesign S1)
+
+Each round payload carries its scoring differential, captured at prep time: the CDGA-posted value when available (Michael provides the CDGA app screenshot), otherwise computed by Claude using proper adjusted-gross (net double bogey) math during prep.
+
+- **Consequence: no hole stroke-index in the schema.** Rating and slope are kept on the tee box for reference and payload validation only.
+
+## D24 — Rounds are never deleted (RESOLVED, 2026-07-10, Stats redesign S1)
+
+"Archived" means outside the 20-round window, not removed. All Stats views are query windows over the full `round` table. Storage is free; deleted data is unrecoverable, and multi-season comparisons (2026 vs 2027) become possible for free.
+
+## D25 — Stats tab is a clean data surface (RESOLVED, 2026-07-10, Stats redesign S1)
+
+Three filters, seven stat groups (design doc §4). No narrative, insight cards, or coaching copy — that is Plan's job (D19).
+
+## D26 — Club Confidence moves to the Bag tab, removed from Practice (RESOLVED, 2026-07-10, Stats redesign S1)
+
+Restores the original spec §7 placement: the panel describes what the clubs do, so it belongs alongside carry and dispersion in the Bag, not in the session logger. The relocation is a small standalone UI mission with no schema impact, sequenced off the Stats critical path so it never delays S1–S6.
+
+## D27 — Backfill: 20 most recent rounds via the round-logger loop (RESOLVED, 2026-07-10, Stats redesign S1)
+
+Source of truth is GolfLogix, which has hole-by-hole data **including fairway miss direction for all rounds**.
+
+- **The May 19 extraction folder (`MJF_Golf_Scorecard_Extraction_2026-05-19`) is reference/inspiration only, not the ingestion path** — direction was skipped in that bulk pass; one-round-at-a-time processing with follow-up questions recovers it.
+- **Target: full directional FW coverage on all 20 seed rounds.**
