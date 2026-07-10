@@ -122,11 +122,21 @@ export type CreatePracticeSessionInput = {
   linked_shot_session?: string | null;
   focusAreas?: string[];
   metrics?: Array<{ kind: string; value: number }>;
+  /** Lie tags — around_green sessions only (§4c). Empty array is a valid "none tagged". */
+  lie_types?: string[] | null;
+  /** Shot tags — around_green sessions only (§4c). "bunker" here is the explosion shot, not the lie. */
+  shot_types?: string[] | null;
   /** Ordered drill blocks — putting sessions only (§4d). */
   drillBlocks?: CreateDrillBlockInput[];
-  /** Clubs Used — Trackman + Grass Range sessions (Mission 5, §4a/§4b). */
+  /** Clubs Used — Trackman + Grass Range + Around the Green sessions (§4a/§4b/§4c). */
   clubs?: SessionClubInput[];
 };
+
+/** Keep only real tag strings; a non-array (absent/null/garbage) stays NULL in the column. */
+function sanitizeTagArray(raw: string[] | null | undefined): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  return raw.filter((t): t is string => typeof t === "string" && t.trim() !== "").map((t) => t.trim());
+}
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
 
@@ -163,8 +173,8 @@ export async function createPracticeSession(
     await client.query("BEGIN");
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO practice_session
-         (date, type, location, surface, ball, duration_min, overall_rating, recap_md, linked_shot_session)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         (date, type, location, surface, ball, duration_min, overall_rating, recap_md, linked_shot_session, lie_types, shot_types)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING id`,
       [
         input.date,
@@ -176,6 +186,8 @@ export async function createPracticeSession(
         input.overall_rating ?? null,
         input.recap_md ?? null,
         input.linked_shot_session ?? null,
+        sanitizeTagArray(input.lie_types),
+        sanitizeTagArray(input.shot_types),
       ],
     );
     const id = rows[0]!.id;
@@ -226,10 +238,14 @@ export async function createPracticeSession(
     // or note still inserts a bare row (it records that the club was worked).
     // An invalid shot_shape is dropped rather than failing the whole session —
     // the DB CHECK would otherwise 500 the entire save over one bad enum value.
+    // around_green never stores a shape (§4c: shape is a full-swing concept),
+    // even if a raw API caller sends one.
     for (const c of input.clubs ?? []) {
       if (!c || typeof c.club !== "string" || c.club.trim() === "") continue;
       const shotShape =
-        typeof c.shotShape === "string" && (SHOT_SHAPES as readonly string[]).includes(c.shotShape)
+        input.type !== "around_green" &&
+        typeof c.shotShape === "string" &&
+        (SHOT_SHAPES as readonly string[]).includes(c.shotShape)
           ? c.shotShape
           : null;
       await client.query(
@@ -279,9 +295,13 @@ export type PracticeSessionRow = {
   recap_md: string | null;
   linked_shot_session: string | null;
   focusAreas: string[];
+  /** Lie tags (§4c) — populated for around_green sessions only (empty otherwise). */
+  lieTypes: string[];
+  /** Shot tags (§4c) — populated for around_green sessions only (empty otherwise). */
+  shotTypes: string[];
   /** Ordered drill blocks — populated for putting sessions only (empty otherwise). */
   blocks: SessionDrillBlockView[];
-  /** Clubs Used, in bag order — populated for trackman/grass_range only (empty otherwise). */
+  /** Clubs Used, in bag order — populated for trackman/grass_range/around_green only (empty otherwise). */
   clubs: SessionClubView[];
 };
 
@@ -301,10 +321,13 @@ export async function listPracticeSessions(
     overall_rating: number | null;
     recap_md: string | null;
     linked_shot_session: string | null;
+    lie_types: string[] | null;
+    shot_types: string[] | null;
     focus_areas: string[] | null;
   }>(
     `SELECT s.id, to_char(s.date, 'YYYY-MM-DD') AS date, s.type, s.location, s.surface,
             s.ball, s.duration_min, s.overall_rating, s.recap_md, s.linked_shot_session,
+            s.lie_types, s.shot_types,
             COALESCE(array_remove(array_agg(f.area ORDER BY f.area), NULL), '{}') AS focus_areas
        FROM practice_session s
        LEFT JOIN practice_focus f ON f.practice_session_id = s.id
@@ -353,10 +376,12 @@ export async function listPracticeSessions(
     }
   }
 
-  // Third pass: Clubs Used (§5b) for trackman/grass_range sessions only, ordered
-  // by the club roster's bag order (sort_order) so the Recent Sessions clubs line
-  // always reads in bag order regardless of tag order.
-  const rangeIds = rows.filter((r) => r.type === "trackman" || r.type === "grass_range").map((r) => r.id);
+  // Third pass: Clubs Used (§5b) for trackman/grass_range/around_green sessions
+  // only, ordered by the club roster's bag order (sort_order) so the Recent
+  // Sessions clubs line always reads in bag order regardless of tag order.
+  const rangeIds = rows
+    .filter((r) => r.type === "trackman" || r.type === "grass_range" || r.type === "around_green")
+    .map((r) => r.id);
   const clubsBySession = new Map<string, SessionClubView[]>();
   if (rangeIds.length > 0) {
     const { rows: clubRows } = await pool.query<{
@@ -391,6 +416,8 @@ export async function listPracticeSessions(
     recap_md: r.recap_md,
     linked_shot_session: r.linked_shot_session,
     focusAreas: r.focus_areas ?? [],
+    lieTypes: r.lie_types ?? [],
+    shotTypes: r.shot_types ?? [],
     blocks: blocksBySession.get(r.id) ?? [],
     clubs: clubsBySession.get(r.id) ?? [],
   }));
