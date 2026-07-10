@@ -6,7 +6,6 @@ import {
   FORM_FIELDS,
   buildSaveBody,
   initialFieldValues,
-  listValue,
   scalarValue,
   SHOT_SHAPES,
   LIE_TYPES,
@@ -74,33 +73,16 @@ const PERSONAS: Persona[] = [
   { id: "the_ringer", label: "The Ringer", blurb: "scramble specialist" },
 ];
 
+// Mission 7: the four loggable types (spec v2 §2). 'short_game' and 'net'
+// (Spornia) are retired from the picker; their legacy rows still render via
+// TYPE_LABEL below. A Recap "Take to Practice →" link (?focus=…) still lands
+// here, but with the Focus Areas chips retired the param is simply ignored.
 const SESSION_TYPES = [
   { id: "trackman", label: "Trackman range", sub: "Map my bag · feeds dispersion", feeds: "data" },
   { id: "grass_range", label: "Grass range", sub: "Off turf · no LM data", feeds: "feel" },
   { id: "around_green", label: "Around the green", sub: "Chip · pitch · flop · bunker", feeds: "feel" },
-  { id: "short_game", label: "Short game", sub: "Chip · putt · bunker", feeds: "feel" },
   { id: "putting", label: "Putting", sub: "Drill blocks · lag & gate", feeds: "feel" },
-  { id: "net", label: "Spornia net", sub: "Home · swing thoughts", feeds: "feel" },
 ] as const satisfies readonly { id: SessionTypeId; label: string; sub: string; feeds: "data" | "feel" }[];
-
-const FOCUS_OPTIONS: { label: string; area: string }[] = [
-  { label: "Driver", area: "driver" },
-  { label: "Lag putting", area: "lag_putting" },
-  { label: "Chipping", area: "chipping" },
-  { label: "Pitching", area: "pitching" },
-  { label: "Bunker", area: "bunker" },
-  { label: "4i path", area: "4i_path" },
-  { label: "Short irons", area: "short_irons" },
-];
-
-// A Recap weakness arrives as `?focus=three_putt_pct`; map the scoring-stat name
-// onto the practice focus chip it implies (same mapping the engine ranker uses).
-const FOCUS_FROM_PARAM: Record<string, string> = {
-  three_putt_pct: "lag_putting",
-  doubles_per_round: "driver",
-  scrambling_pct: "chipping",
-  fairway_pct: "driver",
-};
 
 const CONFIDENCE_COLOR: Record<string, string> = {
   measured: "var(--green)",
@@ -108,13 +90,16 @@ const CONFIDENCE_COLOR: Record<string, string> = {
   seeded: "var(--faint)",
 };
 
+// Keeps entries for BOTH retired types so history renders: short_game has 7
+// legacy rows; net has zero today, but the label is cheap insurance. Legacy is
+// LABEL-ONLY (a logged decision) — these rows stay expandable and deletable.
 const TYPE_LABEL: Record<string, string> = {
   trackman: "Trackman",
   grass_range: "Grass range",
   around_green: "Around the green",
-  short_game: "Short game",
+  short_game: "Short game (legacy)",
   putting: "Putting",
-  net: "Spornia net",
+  net: "Spornia net (legacy)",
 };
 
 // ── SSE frame parsing (mirrors StrategyPanel) ───────────────────────────────────
@@ -179,8 +164,6 @@ export default function PracticePage() {
   const [durationMin, setDurationMin] = useState("");
   const [rating, setRating] = useState(0);
   const [recap, setRecap] = useState("");
-  const [focus, setFocus] = useState<Set<string>>(new Set());
-  const [focusHighlight, setFocusHighlight] = useState<string | null>(null);
   // type-specific — one state object keyed by FieldDef.key (see formFields.ts)
   const [fields, setFields] = useState<FieldValues>(initialFieldValues);
   // Putting only: the ordered drill-block list + the drill catalog for its picker.
@@ -208,23 +191,6 @@ export default function PracticePage() {
   // Default date to today on the client (avoids a hydration mismatch).
   useEffect(() => {
     setDate(new Date().toISOString().slice(0, 10));
-  }, []);
-
-  // A Recap "Take to Practice →" link lands here with ?focus=<area>. Pre-select the
-  // implied focus chip and highlight it so the session log opens on that weakness.
-  // Read from window (not useSearchParams) to avoid a build-time Suspense boundary.
-  useEffect(() => {
-    try {
-      const raw = new URLSearchParams(window.location.search).get("focus");
-      if (!raw) return;
-      const area = FOCUS_FROM_PARAM[raw] ?? raw;
-      if (FOCUS_OPTIONS.some((f) => f.area === area)) {
-        setFocus((s) => new Set(s).add(area));
-        setFocusHighlight(area);
-      }
-    } catch {
-      /* no window / bad param — ignore */
-    }
   }, []);
 
   const loadConfidence = useCallback(async () => {
@@ -328,13 +294,6 @@ export default function PracticePage() {
   }
 
   // ── Session log: submit ──
-  function toggle(set: Set<string>, value: string): Set<string> {
-    const next = new Set(set);
-    if (next.has(value)) next.delete(value);
-    else next.add(value);
-    return next;
-  }
-
   function toggleTag(list: string[], value: string): string[] {
     return list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
   }
@@ -360,7 +319,7 @@ export default function PracticePage() {
     setClubDrafts((prev) => (club in prev ? { ...prev, [club]: { ...prev[club]!, note } } : prev));
   }
 
-  function setField(key: string, value: string | string[]) {
+  function setField(key: string, value: string) {
     setFields((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -368,7 +327,6 @@ export default function PracticePage() {
     setDurationMin("");
     setRating(0);
     setRecap("");
-    setFocus(new Set());
     setFields(initialFieldValues());
     setBlocks([]);
     setClubDrafts({});
@@ -390,7 +348,6 @@ export default function PracticePage() {
       durationMin,
       rating,
       recap,
-      focus,
       fields,
       blocks,
       clubRoster,
@@ -597,22 +554,10 @@ export default function PracticePage() {
             percentages here; the feel goes in the recap.
           </p>
         )}
-        {type === "short_game" && (
-          <p className="pr-form-note">
-            Chipping, pitching, putting, bunker. Log a light metric if you took one — otherwise just the
-            feel.
-          </p>
-        )}
         {type === "putting" && (
           <p className="pr-form-note feel">
             Build the session from drill blocks — add each drill you ran, in order, and log its numbers.
             A block with just a note still counts (it records that you did the drill).
-          </p>
-        )}
-        {type === "net" && (
-          <p className="pr-form-note feel">
-            The net stops the ball — no distance or dispersion possible. Pure swing-thought &amp;
-            maintenance work. Log the feel and the reps.
           </p>
         )}
 
@@ -719,29 +664,6 @@ export default function PracticePage() {
             ))}
           </div>
         </div>
-
-        {/* Focus Areas — Clubs Used replaces this for trackman/grass_range/putting (§4a).
-            Kept only for short_game/net until their own cleanup mission. */}
-        {(type === "short_game" || type === "net") && (
-          <div className="pr-field">
-            <label>Focus areas</label>
-            <div className="pr-chips">
-              {FOCUS_OPTIONS.map((f) => (
-                <button
-                  key={f.area}
-                  type="button"
-                  className={`pr-chip${focus.has(f.area) ? " on" : ""}${focusHighlight === f.area ? " focus-from-recap" : ""}`}
-                  onClick={() => {
-                    setFocus((s) => toggle(s, f.area));
-                    if (focusHighlight === f.area) setFocusHighlight(null);
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="pr-field">
           <label htmlFor="pr-recap">Recap &amp; feels</label>
@@ -955,7 +877,7 @@ function TypeFields({
 }: {
   defs: FieldDef[];
   fields: FieldValues;
-  onChange: (key: string, value: string | string[]) => void;
+  onChange: (key: string, value: string) => void;
 }) {
   const groups: { grid: boolean; defs: FieldDef[] }[] = [];
   for (const def of defs) {
@@ -987,7 +909,7 @@ function Field({
 }: {
   def: FieldDef;
   fields: FieldValues;
-  onChange: (key: string, value: string | string[]) => void;
+  onChange: (key: string, value: string) => void;
 }) {
   const wrap = def.layout === "standalone" ? "pr-field full" : `pr-field${def.gridFull ? " full" : ""}`;
   switch (def.kind) {
@@ -1004,39 +926,6 @@ function Field({
           />
         </div>
       );
-    case "number":
-      return (
-        <div className={wrap}>
-          <label htmlFor={def.id}>{def.label}</label>
-          <input
-            id={def.id}
-            className="pr-input"
-            type="number"
-            inputMode="numeric"
-            value={scalarValue(fields, def.key)}
-            onChange={(e) => onChange(def.key, e.target.value)}
-            placeholder={def.placeholder}
-          />
-        </div>
-      );
-    case "select":
-      return (
-        <div className={wrap}>
-          <label htmlFor={def.id}>{def.label}</label>
-          <select
-            id={def.id}
-            className="pr-select"
-            value={scalarValue(fields, def.key)}
-            onChange={(e) => onChange(def.key, e.target.value)}
-          >
-            {def.options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      );
     case "readonly":
       return (
         <div className={wrap}>
@@ -1044,28 +933,6 @@ function Field({
           <input className="pr-input" value={def.displayValue} disabled readOnly />
         </div>
       );
-    case "chips": {
-      const selected = listValue(fields, def.key);
-      return (
-        <div className={wrap}>
-          <label>{def.label}</label>
-          <div className="pr-chips">
-            {def.options.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`pr-chip${selected.includes(c) ? " on" : ""}`}
-                onClick={() =>
-                  onChange(def.key, selected.includes(c) ? selected.filter((x) => x !== c) : [...selected, c])
-                }
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      );
-    }
   }
 }
 

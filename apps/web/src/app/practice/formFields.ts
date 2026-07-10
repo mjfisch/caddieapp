@@ -5,19 +5,19 @@
 // clearing. Adding/removing a field for a session type is now one registry edit.
 //
 // Bespoke widgets stay hand-written in page.tsx on purpose: the date/duration
-// grid, star rating, focus-area chips, type picker, and trackman import block
-// are either universal (not per-type) or interaction patterns richer than
+// grid, star rating, type picker, and trackman import block are either
+// universal (not per-type) or interaction patterns richer than
 // "label + one input → one payload slot", which is all the registry models.
 //
 // Pure data + pure functions — no React, no I/O — so tests/form-fields.test.ts
 // can assert the exact POST body per type in the node test harness.
 
+// Mission 7: 'short_game' and 'net' retired — no longer selectable or loggable.
+// Legacy rows of both types still render in history via TYPE_LABEL (page.tsx).
 export const SESSION_TYPE_IDS = [
   "trackman",
   "grass_range",
-  "short_game",
   "around_green",
-  "net",
   "putting",
 ] as const;
 export type SessionTypeId = (typeof SESSION_TYPE_IDS)[number];
@@ -30,17 +30,10 @@ export type ScalarPayload =
   /** Trimmed value into a top-level column; empty → null. */
   | { to: "column"; column: ColumnKey }
   /** Rendered line prepended above the free-text recap (null = contribute nothing). */
-  | { to: "recapPrefix"; prefix: (raw: string) => string | null }
-  /** Select value → auto-added focus-area tag (Set semantics, so no duplicates). */
-  | { to: "focusTag"; tagByValue: Record<string, string> }
-  /** Numeric string → { kind, value } metric when non-blank and finite. */
-  | { to: "metric"; metric: string };
+  | { to: "recapPrefix"; prefix: (raw: string) => string | null };
 
 /** A readonly field contributes a fixed column value (e.g. grass range → surface "grass"). */
 export type ConstantPayload = { to: "constantColumn"; column: ColumnKey; value: string };
-
-/** A chips field's selection folds into the recap prefix (null = contribute nothing). */
-export type ChipsPayload = { to: "recapPrefix"; prefix: (selected: string[]) => string | null };
 
 type FieldBase = {
   /** Unique across the WHOLE registry — all fields share one state object. */
@@ -57,18 +50,11 @@ type FieldBase = {
 
 // New input kinds (textarea, date, …) are added here deliberately, with their
 // own render + payload handling — not by loosening an existing variant.
+// (Mission 7 retired the "select", "number", and "chips" kinds along with the
+// focusTag/metric payloads — all were short_game/net-only. Re-add deliberately.)
 export type FieldDef =
   | (FieldBase & { kind: "text"; id: string; placeholder: string; defaultValue: string; payload: ScalarPayload })
-  | (FieldBase & { kind: "number"; id: string; placeholder: string; defaultValue: string; payload: ScalarPayload })
-  | (FieldBase & {
-      kind: "select";
-      id: string;
-      options: { value: string; label: string }[];
-      defaultValue: string;
-      payload: ScalarPayload;
-    })
-  | (FieldBase & { kind: "readonly"; displayValue: string; payload: ConstantPayload })
-  | (FieldBase & { kind: "chips"; options: string[]; defaultValue: string[]; payload: ChipsPayload });
+  | (FieldBase & { kind: "readonly"; displayValue: string; payload: ConstantPayload });
 
 export const FORM_FIELDS: Record<SessionTypeId, FieldDef[]> = {
   trackman: [
@@ -135,82 +121,6 @@ export const FORM_FIELDS: Record<SessionTypeId, FieldDef[]> = {
       payload: { to: "recapPrefix", prefix: (raw) => (raw.trim() ? `Conditions: ${raw.trim()}` : null) },
     },
   ],
-  short_game: [
-    {
-      kind: "select",
-      key: "sgArea",
-      id: "pr-sga",
-      label: "Area",
-      defaultValue: "putting_green",
-      layout: "standalone",
-      options: [
-        { value: "putting_green", label: "Putting green" },
-        { value: "chipping", label: "Chipping" },
-        { value: "pitching", label: "Pitching" },
-        { value: "bunker", label: "Bunker" },
-      ],
-      payload: {
-        to: "focusTag",
-        tagByValue: {
-          putting_green: "lag_putting",
-          chipping: "chipping",
-          pitching: "pitching",
-          bunker: "bunker",
-        },
-      },
-    },
-    {
-      kind: "number",
-      key: "lagIn3ft",
-      id: "pr-lag",
-      label: "Lag: in 3 ft (%)",
-      placeholder: "70",
-      defaultValue: "",
-      layout: "grid",
-      payload: { to: "metric", metric: "lag_in_3ft" },
-    },
-    {
-      kind: "number",
-      key: "upDown",
-      id: "pr-ud",
-      label: "Up & down (%)",
-      placeholder: "50",
-      defaultValue: "",
-      layout: "grid",
-      payload: { to: "metric", metric: "up_and_down" },
-    },
-  ],
-  net: [
-    {
-      kind: "chips",
-      key: "clubsWorked",
-      label: "Clubs worked",
-      options: ["Driver", "7i", "8i", "PW", "Wedges"],
-      defaultValue: [],
-      layout: "standalone",
-      payload: { to: "recapPrefix", prefix: (clubs) => (clubs.length ? `Clubs: ${clubs.join(", ")}.` : null) },
-    },
-    {
-      kind: "number",
-      key: "reps",
-      id: "pr-reps",
-      label: "Reps",
-      placeholder: "40",
-      defaultValue: "",
-      layout: "grid",
-      payload: { to: "metric", metric: "reps" },
-    },
-    {
-      kind: "text",
-      key: "swingThought",
-      id: "pr-st",
-      label: "Swing thought",
-      placeholder: "Shallower takeaway",
-      defaultValue: "",
-      layout: "grid",
-      payload: { to: "recapPrefix", prefix: (raw) => (raw.trim() ? `Swing thought: ${raw.trim()}.` : null) },
-    },
-  ],
   // Around the Green has NO scalar registry fields (§4c): shared fields plus three
   // bespoke chip rows (clubs used, lie types, shot types) — and deliberately NO
   // metric inputs (no Area dropdown, no percentage fields; measurement-structure
@@ -224,9 +134,8 @@ export const FORM_FIELDS: Record<SessionTypeId, FieldDef[]> = {
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
-export type FieldValue = string | string[];
 /** One state object for ALL types' fields (keys stay unique registry-wide). */
-export type FieldValues = Record<string, FieldValue>;
+export type FieldValues = Record<string, string>;
 
 /** Default values for every stateful field across all types — the initial (and reset) form state. */
 export function initialFieldValues(): FieldValues {
@@ -234,20 +143,14 @@ export function initialFieldValues(): FieldValues {
   for (const defs of Object.values(FORM_FIELDS)) {
     for (const def of defs) {
       if (def.kind === "readonly") continue; // no state — fixed display + constant payload
-      values[def.key] = def.kind === "chips" ? [...def.defaultValue] : def.defaultValue;
+      values[def.key] = def.defaultValue;
     }
   }
   return values;
 }
 
 export function scalarValue(fields: FieldValues, key: string): string {
-  const v = fields[key];
-  return typeof v === "string" ? v : "";
-}
-
-export function listValue(fields: FieldValues, key: string): string[] {
-  const v = fields[key];
-  return Array.isArray(v) ? v : [];
+  return fields[key] ?? "";
 }
 
 // ── Drill blocks (Putting — bespoke widget, not a FieldDef) ─────────────────────
@@ -412,6 +315,9 @@ export type SaveSessionBody = {
   duration_min: number | null;
   overall_rating: number | null;
   recap_md: string | null;
+  /** Always [] since Mission 7 — the Focus Areas chips and metric inputs are
+   * retired (practice_focus/practice_metric frozen). The keys stay so the wire
+   * body's shared shape is unchanged for the four surviving types. */
   focusAreas: string[];
   metrics: { kind: string; value: number }[];
   /** Lie tags — present for around_green sessions only (§4c). */
@@ -423,9 +329,6 @@ export type SaveSessionBody = {
   /** Clubs Used — trackman/grass_range carry shape+note rows; around_green carries note-only rows. */
   clubs?: SessionClubPayload[] | AroundGreenClubPayload[];
 };
-
-/** Session types whose form still shows the Focus Areas chip row (§4a: "Clubs Used replaces Focus Areas"). */
-const FOCUS_CHIP_TYPES: ReadonlySet<SessionTypeId> = new Set(["short_game", "net"]);
 
 /** Session types whose form shows the Clubs Used chip row. */
 const CLUBS_USED_TYPES: ReadonlySet<SessionTypeId> = new Set(["trackman", "grass_range"]);
@@ -441,7 +344,6 @@ export function buildSaveBody(input: {
   durationMin: string;
   rating: number;
   recap: string;
-  focus: ReadonlySet<string>;
   fields: FieldValues;
   /** Putting drill blocks (ignored for other types). */
   blocks?: DrillBlockDraft[];
@@ -453,10 +355,6 @@ export function buildSaveBody(input: {
   shotTypes?: string[];
 }): SaveSessionBody {
   const { type, fields } = input;
-  // Focus Areas chips only still exist for short_game/net (§4a) — a stale/deep-linked
-  // focus selection must not leak into a trackman/grass_range/putting payload.
-  const focusAreas = new Set(FOCUS_CHIP_TYPES.has(type) ? input.focus : []);
-  const metrics: { kind: string; value: number }[] = [];
   const columns: Record<ColumnKey, string | null> = { location: null, surface: null, ball: null };
   const recapParts: string[] = [];
 
@@ -465,23 +363,13 @@ export function buildSaveBody(input: {
       columns[def.payload.column] = def.payload.value;
       continue;
     }
-    if (def.kind === "chips") {
-      const part = def.payload.prefix(listValue(fields, def.key));
-      if (part) recapParts.push(part);
-      continue;
-    }
     const p = def.payload;
     const raw = scalarValue(fields, def.key);
     if (p.to === "column") {
       columns[p.column] = raw.trim() || null;
-    } else if (p.to === "recapPrefix") {
+    } else {
       const part = p.prefix(raw);
       if (part) recapParts.push(part);
-    } else if (p.to === "focusTag") {
-      const tag = p.tagByValue[raw];
-      if (tag) focusAreas.add(tag);
-    } else if (p.to === "metric") {
-      if (raw.trim() && Number.isFinite(Number(raw))) metrics.push({ kind: p.metric, value: Number(raw) });
     }
   }
 
@@ -499,8 +387,8 @@ export function buildSaveBody(input: {
       input.durationMin.trim() && Number.isFinite(Number(input.durationMin)) ? Number(input.durationMin) : null,
     overall_rating: input.rating > 0 ? input.rating : null,
     recap_md: recapText || null,
-    focusAreas: [...focusAreas],
-    metrics,
+    focusAreas: [],
+    metrics: [],
   };
 
   // Putting alone carries drill blocks (the bespoke widget). Other types never

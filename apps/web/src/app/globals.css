@@ -970,7 +970,7 @@ a:hover { text-decoration: underline; }
   font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--faint);
 }
-.pr-input, .pr-textarea, .pr-select {
+.pr-input, .pr-textarea {
   min-height: 44px; background: #0a121f; border: 1px solid var(--line); border-radius: 10px;
   padding: 10px 11px; font-size: 14px; color: var(--text); width: 100%;
   font-family: var(--font-sans), system-ui, sans-serif;
@@ -983,8 +983,6 @@ a:hover { text-decoration: underline; }
   background: #0a121f; color: var(--muted);
 }
 .pr-chip.on { background: rgba(95, 217, 145, 0.16); border-color: var(--green-dim, #2f7f57); color: var(--green); }
-/* Pre-selected from a Recap "Take to Practice →" link — an amber ring draws the eye. */
-.pr-chip.focus-from-recap { box-shadow: 0 0 0 2px var(--amber); border-color: var(--amber); }
 .pr-stars { display: flex; gap: 6px; }
 .pr-star {
   min-width: 40px; min-height: 40px; cursor: pointer; font-size: 22px; line-height: 1;

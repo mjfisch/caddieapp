@@ -69,15 +69,14 @@ export type PracticeDeps = {
   streamText?: (prompt: string) => AsyncIterable<string>;
 };
 
-// Mission 2: 'around_green' + 'putting' added (Practice Tab Spec v2 §2). 'net'
-// stays valid server-side for now — the client picker still offers it, so
-// removing it here would 400 a still-live UI; its removal is a later UI mission.
-// Must stay in lockstep with the DB CHECK in 009_practice_redesign_schema.sql.
+// Mission 7: 'short_game' and 'net' retired from creation (Practice Tab Spec v2
+// §2/§7). The 7 legacy short_game rows stay readable and deletable — legacy is
+// label-only, enforced nowhere but the client's TYPE_LABEL map. The DB CHECK
+// (011_retire_net_type.sql) keeps 'short_game' valid for those rows; only this
+// list decides what NEW sessions the API accepts.
 const SESSION_TYPES = [
   "trackman",
   "grass_range",
-  "short_game",
-  "net",
   "around_green",
   "putting",
 ] as const;
