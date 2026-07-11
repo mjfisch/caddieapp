@@ -1,6 +1,14 @@
 import "server-only";
 export { checkHealth, type HealthResult } from "./health";
 export { getPool, runMigrations } from "./db";
+export { syncRounds, applyRoundSync, type RoundSyncDeps } from "./roundSync";
+export {
+  validateRoundPayload,
+  RoundPayloadError,
+  type RoundPayload,
+  type RoundHolePayload,
+  type RoundPayloadRule,
+} from "./roundPayload";
 export { getAnthropic, isAnthropicConfigured } from "./anthropic";
 export {
   runStrategyStream,

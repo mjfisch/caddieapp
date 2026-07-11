@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   runPracticeCoachStream,
   isAnthropicConfigured,
-  runMigrations,
+  syncRounds,
   PracticeError,
 } from "@gai/api";
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await runMigrations();
+    await syncRounds();
     const stream = await runPracticeCoachStream({ persona });
     return new Response(stream, {
       headers: {

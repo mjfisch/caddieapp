@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   getClubConfidence,
   upsertClubConfidence,
-  runMigrations,
+  syncRounds,
   PracticeError,
 } from "@gai/api";
 
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   try {
-    await runMigrations();
+    await syncRounds();
     const clubs = await getClubConfidence();
     return NextResponse.json({ clubs });
   } catch (err) {
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   const { club, feel_level, note } = (body ?? {}) as Record<string, unknown>;
 
   try {
-    await runMigrations();
+    await syncRounds();
     const updated = await upsertClubConfidence({
       club: club as string,
       feel_level: feel_level as number,

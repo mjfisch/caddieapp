@@ -1,0 +1,32 @@
+{
+  "external_key": "2026-06-22_fox-bend",
+  "date": "2026-06-22",
+  "course": { "name": "Fox Bend Golf Course", "slug": "fox-bend" },
+  "tee_box": { "name": "White", "rating": 71.2, "slope": 128, "yardage": 6525 },
+  "score": {
+    "gross": 81,
+    "differential": 8.7,
+    "differential_source": "cdga_posted"
+  },
+  "holes": [
+    { "hole": 1,  "par": 5, "strokes": 5, "putts": 2, "fairway_result": "hit",        "gir": true  },
+    { "hole": 2,  "par": 4, "strokes": 4, "putts": 2, "fairway_result": "miss_left",  "gir": true  },
+    { "hole": 3,  "par": 3, "strokes": 4, "putts": 2, "fairway_result": null,          "gir": false },
+    { "hole": 4,  "par": 4, "strokes": 4, "putts": 1, "fairway_result": "miss_right", "gir": false },
+    { "hole": 5,  "par": 4, "strokes": 4, "putts": 2, "fairway_result": "miss_left",  "gir": true  },
+    { "hole": 6,  "par": 3, "strokes": 3, "putts": 2, "fairway_result": null,          "gir": true  },
+    { "hole": 7,  "par": 4, "strokes": 3, "putts": 1, "fairway_result": "miss_left",  "gir": true  },
+    { "hole": 8,  "par": 4, "strokes": 4, "putts": 2, "fairway_result": "miss_left",  "gir": true  },
+    { "hole": 9,  "par": 5, "strokes": 6, "putts": 2, "fairway_result": "miss_left",  "gir": false },
+    { "hole": 10, "par": 4, "strokes": 4, "putts": 2, "fairway_result": "miss_right", "gir": true  },
+    { "hole": 11, "par": 3, "strokes": 4, "putts": 1, "fairway_result": null,          "gir": false },
+    { "hole": 12, "par": 4, "strokes": 6, "putts": 2, "fairway_result": "hit",        "gir": false },
+    { "hole": 13, "par": 4, "strokes": 5, "putts": 1, "fairway_result": "miss_left",  "gir": false },
+    { "hole": 14, "par": 5, "strokes": 5, "putts": 2, "fairway_result": "hit",        "gir": true  },
+    { "hole": 15, "par": 3, "strokes": 5, "putts": 1, "fairway_result": null,          "gir": false },
+    { "hole": 16, "par": 5, "strokes": 6, "putts": 3, "fairway_result": "miss_right", "gir": true  },
+    { "hole": 17, "par": 4, "strokes": 4, "putts": 2, "fairway_result": "miss_right", "gir": true  },
+    { "hole": 18, "par": 4, "strokes": 5, "putts": 2, "fairway_result": "miss_right", "gir": false }
+  ],
+  "reflection": "Started really strong, faded on the back 9. Driver off the tee repeatedly left me with tree trouble on approach. Two really bad shots cost me double bogeys, topped 8 iron on 12 from the fairway into the creek and chunked 6 iron into the lake on 15."
+}
