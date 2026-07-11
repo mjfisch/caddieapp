@@ -637,16 +637,6 @@ export default function PracticePage() {
           </>
         )}
 
-        {/* Trackman import bridge */}
-        {type === "trackman" && (
-          <div className="pr-import">
-            <div className="pr-import-tx">
-              <b>Import Trackman screenshots</b>
-              <small>Runs the Shot Logger skill → updates Bag dispersion</small>
-            </div>
-          </div>
-        )}
-
         {/* Universal: rating + focus + recap */}
         <div className="pr-field">
           <label>Overall rating</label>

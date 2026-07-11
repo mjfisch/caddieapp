@@ -989,13 +989,6 @@ a:hover { text-decoration: underline; }
   background: none; border: none; color: var(--faint); padding: 4px;
 }
 .pr-star.on { color: var(--amber); }
-.pr-import {
-  display: flex; align-items: center; gap: 10px; background: linear-gradient(120deg, #102a1e, #0c1a16);
-  border: 1px solid var(--green-dim, #2f7f57); border-radius: 12px; padding: 12px;
-}
-.pr-import .pr-import-tx { flex: 1; }
-.pr-import b { display: block; font-size: 12.5px; font-weight: 700; }
-.pr-import small { font-size: 11px; color: var(--muted); }
 .pr-save {
   min-height: 48px; width: 100%; cursor: pointer; border: none; border-radius: 12px; padding: 13px;
   font-size: 14px; font-weight: 700; color: var(--bg); background: var(--green);
