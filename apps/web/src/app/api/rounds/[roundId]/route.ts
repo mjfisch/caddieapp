@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getRound, markRoundTest, runMigrations, RoundError } from "@gai/api";
+import { getRound, markRoundTest, syncRounds, RoundError } from "@gai/api";
 
 // pg needs the Node runtime, not edge. Never cache a read.
 export const runtime = "nodejs";
@@ -12,7 +12,7 @@ export async function GET(
 ) {
   const { roundId } = await params;
   try {
-    await runMigrations();
+    await syncRounds();
     const round = await getRound(roundId);
     if (!round) {
       return NextResponse.json({ error: "round not found" }, { status: 404 });
@@ -43,7 +43,7 @@ export async function PATCH(
   const { isTest } = (body ?? {}) as Record<string, unknown>;
 
   try {
-    await runMigrations();
+    await syncRounds();
     const { updated } = await markRoundTest(roundId, isTest as boolean);
     return NextResponse.json({ updated });
   } catch (err) {

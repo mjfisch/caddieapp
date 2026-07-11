@@ -1,4 +1,4 @@
-import { getBagClubs, getClubShotCounts, runMigrations } from "@gai/api";
+import { getBagClubs, getClubShotCounts, syncRounds } from "@gai/api";
 import {
   type BagClubView,
   buildCarryMap,
@@ -114,7 +114,7 @@ function CarryMap({ clubs }: { clubs: BagClubView[] }) {
 }
 
 export default async function BagPage() {
-  await runMigrations();
+  await syncRounds();
   const [clubsRaw, shotCounts] = await Promise.all([getBagClubs(), getClubShotCounts()]);
   const clubs: BagClubView[] = clubsRaw; // BagClub is structurally BagClubView
 

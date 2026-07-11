@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { computeScoringWeaknesses, runMigrations } from "@gai/api";
+import { computeScoringWeaknesses, syncRounds } from "@gai/api";
 
 // pg needs the Node runtime, not edge. Never cache a read.
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   try {
-    await runMigrations();
+    await syncRounds();
     const weaknesses = await computeScoringWeaknesses();
     return NextResponse.json({ weaknesses });
   } catch (err) {

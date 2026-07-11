@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deletePracticeSession, runMigrations, PracticeError } from "@gai/api";
+import { deletePracticeSession, syncRounds, PracticeError } from "@gai/api";
 
 // pg needs the Node runtime, not edge. Never cache a read.
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export async function DELETE(
 ) {
   const { id } = await params;
   try {
-    await runMigrations();
+    await syncRounds();
     const { deleted } = await deletePracticeSession(id);
     return NextResponse.json({ deleted });
   } catch (err) {

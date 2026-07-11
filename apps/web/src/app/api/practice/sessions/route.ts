@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   createPracticeSession,
   listPracticeSessions,
-  runMigrations,
+  syncRounds,
   PracticeError,
   type CreatePracticeSessionInput,
 } from "@gai/api";
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 /** GET /api/practice/sessions — all sessions, newest first, with focus tags. */
 export async function GET() {
   try {
-    await runMigrations();
+    await syncRounds();
     const sessions = await listPracticeSessions();
     return NextResponse.json({ sessions });
   } catch (err) {
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await runMigrations();
+    await syncRounds();
     const { id } = await createPracticeSession(body as CreatePracticeSessionInput);
     return NextResponse.json({ id }, { status: 201 });
   } catch (err) {

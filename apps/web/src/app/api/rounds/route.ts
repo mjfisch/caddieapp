@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createRound, listRounds, runMigrations, RoundError } from "@gai/api";
+import { createRound, listRounds, syncRounds, RoundError } from "@gai/api";
 
 // pg needs the Node runtime, not edge. Never cache a read.
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "courseId query param is required" }, { status: 400 });
   }
   try {
-    await runMigrations();
+    await syncRounds();
     const rounds = await listRounds(courseId);
     return NextResponse.json({ rounds });
   } catch (err) {
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   } = (body ?? {}) as Record<string, unknown>;
 
   try {
-    await runMigrations();
+    await syncRounds();
     const { roundId } = await createRound({
       courseId: courseId as string,
       playedDate: playedDate as string,
