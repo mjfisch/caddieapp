@@ -29,11 +29,11 @@ function TabIconGlyph({ name }: { name: TabIcon }) {
           <path d="M9 4v14M15 6v14" />
         </svg>
       );
-    case "play": // pin flag — on-course
+    case "stats": // bar chart — round history & trends
       return (
         <svg {...common}>
-          <path d="M6 21V3" />
-          <path d="M6 4h11l-3 3.5L17 11H6" />
+          <path d="M4 20h16" />
+          <path d="M7 20v-6M12 20V6M17 20v-9" />
         </svg>
       );
     case "practice": // dispersion target
