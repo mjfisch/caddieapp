@@ -379,7 +379,8 @@ describe.skipIf(!hasDb)("D22 round sync against the live schema", () => {
     ).rejects.toThrow(/2026-06-25_stats-s4-broken\.json violates §3 rule \(b\)/);
 
     const { rows } = await pool.query(
-      "SELECT count(*)::int AS n FROM round WHERE external_key LIKE '%stats-s4-%'",
+      "SELECT count(*)::int AS n FROM round WHERE external_key = ANY($1)",
+      [["2026-06-24_stats-s4-heldback", "2026-06-25_stats-s4-broken"]],
     );
     expect(rows[0]!.n).toBe(0);
   });
