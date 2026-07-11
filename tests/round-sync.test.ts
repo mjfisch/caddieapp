@@ -307,7 +307,6 @@ describe.skipIf(!hasDb)("D22 round sync against the live schema", () => {
       "SELECT * FROM round WHERE course_id = $1 ORDER BY external_key",
       [courseId],
     );
-    const { rows: totalBefore } = await pool.query("SELECT count(*)::int AS n FROM round");
 
     await applyRoundSync();
 
@@ -315,9 +314,14 @@ describe.skipIf(!hasDb)("D22 round sync against the live schema", () => {
       "SELECT * FROM round WHERE course_id = $1 ORDER BY external_key",
       [courseId],
     );
-    const { rows: totalAfter } = await pool.query("SELECT count(*)::int AS n FROM round");
     expect(rerun.rows).toEqual(snapshot.rows); // byte-identical: never touched
-    expect(totalAfter[0]!.n).toBe(totalBefore[0]!.n); // and nothing else changed
+    // …and the sync still owns exactly its one manifested round (no global
+    // count here — other DB-gated test files legitimately run in parallel).
+    const { rows: synced } = await pool.query(
+      "SELECT count(*)::int AS n FROM round WHERE external_key = $1",
+      [SMOKE_KEY],
+    );
+    expect(synced[0]!.n).toBe(1);
   });
 
   it("4. partial failure rolls back the WHOLE round — never a half-imported round", async () => {
