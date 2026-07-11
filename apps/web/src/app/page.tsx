@@ -28,20 +28,13 @@ const ARROW = (
 );
 
 // Entry icons — stroke glyphs (currentColor), matching the bottom-nav set.
-function EntryIcon({ kind }: { kind: "book" | "flag" | "target" }) {
+function EntryIcon({ kind }: { kind: "stats" | "target" }) {
   const c = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
-  if (kind === "book")
+  if (kind === "stats")
     return (
       <svg {...c}>
-        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z" />
-        <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5Z" />
-      </svg>
-    );
-  if (kind === "flag")
-    return (
-      <svg {...c}>
-        <path d="M6 21V3" />
-        <path d="M6 4h11l-3 3.5L17 11H6" />
+        <path d="M4 20h16" />
+        <path d="M7 20v-6M12 20V6M17 20v-9" />
       </svg>
     );
   return (
@@ -57,11 +50,10 @@ const ENTRIES: {
   href: string;
   title: string;
   sub: string;
-  icon: "book" | "flag" | "target";
+  icon: "stats" | "target";
   primary?: boolean;
 }[] = [
-  { href: "/courses", title: "Open the yardage book", sub: "Prep & strategy, hole by hole", icon: "book", primary: true },
-  { href: "/play", title: "Play a round", sub: "On-course, glance-and-go", icon: "flag" },
+  { href: "/stats", title: "Stats", sub: "Round history & scoring trends", icon: "stats", primary: true },
   { href: "/practice", title: "Practice", sub: "Log sessions, get a coach plan", icon: "target" },
 ];
 
@@ -92,7 +84,7 @@ export default function Home() {
         <h1 className="lp-title serif">Built for the next 69.</h1>
       </section>
 
-      {/* Entry points: primary = prep/yardage book, then on-course play, then practice. */}
+      {/* Entry points (D20): primary = Stats, then Practice. */}
       <nav className="lp-entries" aria-label="Get started">
         {ENTRIES.map((e) => (
           <Link key={e.href} href={e.href} className={e.primary ? "lp-card primary" : "lp-card"}>
