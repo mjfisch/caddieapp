@@ -136,3 +136,32 @@ UPDATE round
 CREATE UNIQUE INDEX IF NOT EXISTS round_external_key_key ON round (external_key);
 
 ALTER TABLE round ALTER COLUMN external_key SET NOT NULL;
+
+-- ── 4. round_hole.fairway_result — directional fairways (design doc §3/§4) ──
+
+ALTER TABLE round_hole ADD COLUMN IF NOT EXISTS fairway_result text;
+
+-- CHECK layer 3 of the header's coupling (NULL passes — par 3s and
+-- unknown-direction legacy rows stay legal at the DB layer).
+ALTER TABLE round_hole DROP CONSTRAINT IF EXISTS round_hole_fairway_result_check;
+ALTER TABLE round_hole ADD CONSTRAINT round_hole_fairway_result_check
+  CHECK (fairway_result IN ('hit','miss_left','miss_right'));
+
+-- The par-3 NULL rule (fairway_result must be NULL iff the hole is a par 3,
+-- design doc §3 sync rule 4) is deliberately NOT a DB CHECK: round_hole has no
+-- FK to hole, and a CHECK cannot join through the positional
+-- (course_id, hole_number = number) match to reach hole.par. That rule's
+-- enforcement home is the S4 sync validator — layer 2 of the header's coupling.
+
+-- Backfill from the deprecated boolean: true → 'hit'; false stays NULL —
+-- direction is unknown on legacy rows and a direction is NEVER invented
+-- (design doc §4.3: an unknown-direction miss is excluded from the split's
+-- denominator, not silently binned).
+--
+-- fairway_hit is DEPRECATED as of this migration: code stops reading and
+-- writing it now (services/api/src/rounds.ts reads/writes fairway_result
+-- only); the column itself is kept and drops in a later cleanup migration.
+UPDATE round_hole
+   SET fairway_result = 'hit'
+ WHERE fairway_hit = true
+   AND fairway_result IS NULL;

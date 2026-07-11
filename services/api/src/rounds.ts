@@ -154,7 +154,12 @@ export type UpsertRoundHoleInput = {
   holeNumber: number;
   strokes: number;
   putts?: number | null;
-  fairwayHit?: boolean | null;
+  /**
+   * Directional fairway outcome (migration 012). NULL on par 3s — the S4 sync
+   * validator enforces that rule; here NULL is simply legal. The old
+   * fairway_hit boolean is DEPRECATED: this module no longer reads or writes it.
+   */
+  fairwayResult?: FairwayResult | null;
   gir?: boolean | null;
   penaltyStrokes?: number | null;
   notes?: string | null;
@@ -178,17 +183,23 @@ export async function upsertRoundHole(
   if (!Number.isInteger(input?.strokes) || input.strokes < 1) {
     throw new RoundError(400, "strokes must be a positive integer");
   }
+  if (input.fairwayResult != null && !FAIRWAY_RESULTS.includes(input.fairwayResult)) {
+    throw new RoundError(
+      400,
+      `fairwayResult must be one of: ${FAIRWAY_RESULTS.join(", ")} (or null)`,
+    );
+  }
 
   const pool = deps.pool ?? getPool();
   try {
     await pool.query(
       `INSERT INTO round_hole
-         (round_id, hole_number, strokes, putts, fairway_hit, gir, penalty_strokes, notes)
+         (round_id, hole_number, strokes, putts, fairway_result, gir, penalty_strokes, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (round_id, hole_number) DO UPDATE SET
          strokes         = EXCLUDED.strokes,
          putts           = EXCLUDED.putts,
-         fairway_hit     = EXCLUDED.fairway_hit,
+         fairway_result  = EXCLUDED.fairway_result,
          gir             = EXCLUDED.gir,
          penalty_strokes = EXCLUDED.penalty_strokes,
          notes           = EXCLUDED.notes`,
@@ -197,7 +208,7 @@ export async function upsertRoundHole(
         input.holeNumber,
         input.strokes,
         input.putts ?? null,
-        input.fairwayHit ?? null,
+        input.fairwayResult ?? null,
         input.gir ?? null,
         input.penaltyStrokes ?? 0,
         input.notes ?? null,
@@ -222,7 +233,8 @@ export type RoundHoleView = {
   yardageWhite: number | null;
   strokes: number;
   putts: number | null;
-  fairwayHit: boolean | null;
+  /** NULL = par 3 or unknown-direction legacy row (fairway_hit is deprecated). */
+  fairwayResult: FairwayResult | null;
   gir: boolean | null;
   penaltyStrokes: number | null;
   notes: string | null;
@@ -273,13 +285,13 @@ export async function getRound(
     yardage_white: number | null;
     strokes: number;
     putts: number | null;
-    fairway_hit: boolean | null;
+    fairway_result: FairwayResult | null;
     gir: boolean | null;
     penalty_strokes: number | null;
     notes: string | null;
   }>(
     `SELECT rh.hole_number, h.par, h.yardage_white, rh.strokes, rh.putts,
-            rh.fairway_hit, rh.gir, rh.penalty_strokes, rh.notes
+            rh.fairway_result, rh.gir, rh.penalty_strokes, rh.notes
        FROM round_hole rh
        LEFT JOIN hole h ON h.course_id = $2 AND h.number = rh.hole_number
       WHERE rh.round_id = $1
@@ -300,7 +312,7 @@ export async function getRound(
       yardageWhite: h.yardage_white,
       strokes: h.strokes,
       putts: h.putts,
-      fairwayHit: h.fairway_hit,
+      fairwayResult: h.fairway_result,
       gir: h.gir,
       penaltyStrokes: h.penalty_strokes,
       notes: h.notes,
@@ -463,8 +475,10 @@ export function summarizeRound(detail: RoundDetail): RoundStats {
   const puttHoles = holes.filter((h) => h.putts != null);
   const totalPutts = puttHoles.length ? puttHoles.reduce((s, h) => s + (h.putts ?? 0), 0) : null;
 
-  const fairwayHoles = holes.filter((h) => h.fairwayHit != null);
-  const fairwaysHit = fairwayHoles.filter((h) => h.fairwayHit === true).length;
+  // Denominator = holes with a known fairway outcome (design doc §4.3): par 3s
+  // and unknown-direction legacy rows carry NULL and never count.
+  const fairwayHoles = holes.filter((h) => h.fairwayResult != null);
+  const fairwaysHit = fairwayHoles.filter((h) => h.fairwayResult === "hit").length;
   const fairwaysPossible = fairwayHoles.length;
 
   const gir = holes.filter((h) => h.gir === true).length;
@@ -529,7 +543,7 @@ export async function computeScoringWeaknesses(
     fairways_hit: string;
   }>(
     `WITH rh AS (
-       SELECT r.id AS round_id, rh.strokes, rh.putts, rh.fairway_hit, rh.gir, h.par
+       SELECT r.id AS round_id, rh.strokes, rh.putts, rh.fairway_result, rh.gir, h.par
          FROM round r
          JOIN round_hole rh ON rh.round_id = r.id
          LEFT JOIN hole h ON h.course_id = r.course_id AND h.number = rh.hole_number
@@ -542,8 +556,8 @@ export async function computeScoringWeaknesses(
        COUNT(*) FILTER (WHERE par IS NOT NULL AND strokes >= par + 2)::int                 AS doubles,
        COUNT(*) FILTER (WHERE gir = false)::int                                            AS gir_missed,
        COUNT(*) FILTER (WHERE gir = false AND par IS NOT NULL AND strokes <= par)::int     AS scrambles_made,
-       COUNT(*) FILTER (WHERE fairway_hit IS NOT NULL)::int                                AS fairway_attempts,
-       COUNT(*) FILTER (WHERE fairway_hit = true)::int                                     AS fairways_hit
+       COUNT(*) FILTER (WHERE fairway_result IS NOT NULL)::int                             AS fairway_attempts,
+       COUNT(*) FILTER (WHERE fairway_result = 'hit')::int                                 AS fairways_hit
      FROM rh`,
     params,
   );
