@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getRound, deleteRound, markRoundTest, runMigrations, RoundError } from "@gai/api";
+import { getRound, markRoundTest, runMigrations, RoundError } from "@gai/api";
 
 // pg needs the Node runtime, not edge. Never cache a read.
 export const runtime = "nodejs";
@@ -21,28 +21,6 @@ export async function GET(
   } catch (err) {
     console.error("[/api/rounds/[roundId] GET] error:", err);
     return NextResponse.json({ error: "could not load round" }, { status: 500 });
-  }
-}
-
-/**
- * DELETE /api/rounds/[roundId] — delete a round and (cascade) its holes.
- * Idempotent: deleting a missing id still returns 200 { deleted: false }.
- */
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ roundId: string }> },
-) {
-  const { roundId } = await params;
-  try {
-    await runMigrations();
-    const { deleted } = await deleteRound(roundId);
-    return NextResponse.json({ deleted });
-  } catch (err) {
-    if (err instanceof RoundError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    console.error("[/api/rounds/[roundId] DELETE] error:", err);
-    return NextResponse.json({ error: "could not delete round" }, { status: 500 });
   }
 }
 

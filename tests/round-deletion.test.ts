@@ -12,71 +12,20 @@ import {
   listPracticeSessions,
   deletePracticeSession,
 } from "@gai/api";
-import {
-  reconcileDeletedRound,
-  ROUND_ID_KEY,
-  SCORES_KEY,
-  PUTTS_KEY,
-  type StorageLike,
-} from "../apps/web/src/app/play/roundStorage";
 
 // =============================================================
 // Mission 2 — delete rounds & practice sessions + is_test (D-5-1).
 //
 // DB-backed tests gate on DATABASE_URL and run against the SAME Neon DB production
 // reads (per repo memory), so every fixture self-cleans before+after — a leaked
-// round/session/course would show up in the live app. The pure-helper test for the
-// localStorage reconciliation runs everywhere (no DB).
+// round/session/course would show up in the live app.
+//
+// The Play tab's localStorage-reconciliation helper (roundStorage) and its
+// pure-helper tests were retired with the Play surface in Mission S2; the
+// server-side deleteRound path below lives on in the SHARED @gai/api data layer.
 // =============================================================
 
 const hasDb = Boolean(process.env.DATABASE_URL);
-
-// ── Pure helper: localStorage reconciliation (Step 3) — no DB, always runs ───────
-describe("reconcileDeletedRound: purges only the active round's localStorage footprint", () => {
-  /** A fake Web Storage backed by a plain object. */
-  function fakeStore(seed: Record<string, string> = {}): StorageLike & { data: Record<string, string> } {
-    const data = { ...seed };
-    return {
-      data,
-      getItem: (k) => (k in data ? data[k]! : null),
-      setItem: (k, v) => {
-        data[k] = v;
-      },
-    };
-  }
-
-  it("clears the round-id pointer + this course's scores/putts when the deleted round IS active", () => {
-    const store = fakeStore({
-      [ROUND_ID_KEY]: JSON.stringify({ courseA: { date: "2026-06-06", roundId: "r1" } }),
-      [SCORES_KEY]: JSON.stringify({ "courseA-1": 4, "courseA-2": 5, "courseB-1": 3 }),
-      [PUTTS_KEY]: JSON.stringify({ "courseA-1": 2, "courseB-1": 1 }),
-    });
-
-    const cleared = reconcileDeletedRound(store, "courseA", "r1");
-    expect(cleared).toBe(true);
-
-    expect(JSON.parse(store.data[ROUND_ID_KEY]!)).toEqual({});
-    // courseA holes gone; courseB (a different course) untouched.
-    expect(JSON.parse(store.data[SCORES_KEY]!)).toEqual({ "courseB-1": 3 });
-    expect(JSON.parse(store.data[PUTTS_KEY]!)).toEqual({ "courseB-1": 1 });
-  });
-
-  it("leaves localStorage intact when deleting a round that is NOT the active one", () => {
-    const seed = {
-      [ROUND_ID_KEY]: JSON.stringify({ courseA: { date: "2026-06-06", roundId: "active" } }),
-      [SCORES_KEY]: JSON.stringify({ "courseA-1": 4 }),
-      [PUTTS_KEY]: JSON.stringify({ "courseA-1": 2 }),
-    };
-    const store = fakeStore(seed);
-
-    const cleared = reconcileDeletedRound(store, "courseA", "some-old-round");
-    expect(cleared).toBe(false);
-
-    // Nothing changed — the active round's local data survives.
-    expect(JSON.parse(store.data[ROUND_ID_KEY]!)).toEqual({ courseA: { date: "2026-06-06", roundId: "active" } });
-    expect(JSON.parse(store.data[SCORES_KEY]!)).toEqual({ "courseA-1": 4 });
-  });
-});
 
 // ── DB-backed: server delete + cascade + is_test exclusion ───────────────────────
 describe.skipIf(!hasDb)("Mission 2 — server delete, cascade, and is_test exclusion", () => {

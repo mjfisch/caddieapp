@@ -354,67 +354,9 @@ describe("invariant #1 (Phase 3B) — the strategy stream carries the engine's n
   );
 });
 
-// ── Phase 4 — Mode B on-course UI ───────────────────────────────────────────────
-describe("Phase 4 — Mode B on-course UI", () => {
-  const hasDb = Boolean(process.env.DATABASE_URL);
-  const MODE_B_DIR = "apps/web/src/app/play/[courseId]/holes/[holeNumber]/";
-  const MODE_B_PAGE = MODE_B_DIR + "page.tsx";
-  const MODE_B_VIEW = MODE_B_DIR + "HoleView.tsx";
-  const MODE_A_PAGE = "apps/web/src/app/courses/[courseId]/holes/[holeNumber]/page.tsx";
-  // Every client/server file that ships as part of the Mode B route surface.
-  const MODE_B_FILES = [
-    MODE_B_PAGE,
-    MODE_B_VIEW,
-    "apps/web/src/app/play/page.tsx",
-    "apps/web/src/app/play/[courseId]/page.tsx",
-    "apps/web/src/app/play/[courseId]/HoleList.tsx",
-  ];
-
-  it("route exists: GET /play/[courseId]/holes/1 resolves a hole for Fox Bend (→ 200)", async () => {
-    // The route file exists and renders the Mode B decision view from a hole row.
-    expect(existsSync(root + MODE_B_PAGE)).toBe(true);
-    const page = read(MODE_B_PAGE);
-    expect(page.includes("HoleView")).toBe(true);
-    expect(page.includes("FROM hole")).toBe(true);
-    expect(page.includes("notFound")).toBe(true); // a missing hole 404s, a real one 200s
-
-    if (!hasDb) return; // with no DB, the structural wiring above stands in for the render
-    // The query the route runs for hole 1 returns a row, so the page renders (200)
-    // rather than calling notFound() (404).
-    const pool = getPool();
-    const { rows: courses } = await pool.query<{ id: string }>(
-      "SELECT id FROM course WHERE name = $1",
-      ["Fox Bend Golf Course"],
-    );
-    expect(courses[0]).toBeDefined();
-    const { rows: holes } = await pool.query(
-      "SELECT number, par, stroke_index FROM hole WHERE course_id = $1 AND number = 1",
-      [courses[0]!.id],
-    );
-    expect(holes[0]).toBeDefined();
-  });
-
-  it("Mode A is untouched: the prep hole page still renders the strategy panel", () => {
-    // Mode B lives at a separate route; the existing Mode A page and its panel must
-    // be unchanged and still present (the strategy panel markup).
-    expect(existsSync(root + MODE_A_PAGE)).toBe(true);
-    const modeA = read(MODE_A_PAGE);
-    expect(modeA.includes("StrategyPanel")).toBe(true);
-    expect(modeA.includes("<StrategyPanel")).toBe(true);
-    expect(
-      existsSync(root + "apps/web/src/app/courses/[courseId]/holes/[holeNumber]/StrategyPanel.tsx"),
-    ).toBe(true);
-  });
-
-  it("no API key client-side: Mode B files never name ANTHROPIC_API_KEY or a NEXT_PUBLIC_ var", () => {
-    for (const f of MODE_B_FILES) {
-      expect(existsSync(root + f), `${f} should exist`).toBe(true);
-      const src = read(f);
-      expect(src.includes("ANTHROPIC_API_KEY"), `${f} must not name the key`).toBe(false);
-      expect(src.includes("NEXT_PUBLIC_"), `${f} must not use a NEXT_PUBLIC_ var`).toBe(false);
-    }
-  });
-});
+// The Phase 4 "Mode B on-course UI" invariants were retired with the Play surface
+// in Mission S2 (D18/D20). Mode A (the /courses prep hole page + StrategyPanel) is
+// exercised by the Phase 3 strategy tests above and stays fully intact.
 
 // ── Phase 4.5 — Practice tab (ranker + Layer-5 swap + no-fabricated-URL) ────────
 describe("Phase 4.5 — practice coach: deterministic ranking, Layer-5 swap, invariant #4", () => {
@@ -623,21 +565,9 @@ describe("Phase 5 — rounds: persistence, upsert idempotency, scoring weaknesse
     },
   );
 
-  it("4. recap route key safety: the route never names the key or a NEXT_PUBLIC_ var", () => {
-    const route = read("apps/web/src/app/api/rounds/[roundId]/recap/route.ts");
-    expect(route.includes("ANTHROPIC_API_KEY"), "recap route must not name the key").toBe(false);
-    expect(route.includes("NEXT_PUBLIC_"), "recap route must not use a NEXT_PUBLIC_ var").toBe(false);
-  });
-
-  it("5. Mode B untouched: the hole route still resolves a hole and still has the score chips + caddie panel", () => {
-    const page = read("apps/web/src/app/play/[courseId]/holes/[holeNumber]/page.tsx");
-    // Still the DB-backed Mode B page that 200s on a real hole / 404s on a missing one.
-    expect(page.includes("HoleView")).toBe(true);
-    expect(page.includes("FROM hole")).toBe(true);
-    expect(page.includes("notFound")).toBe(true);
-
-    const view = read("apps/web/src/app/play/[courseId]/holes/[holeNumber]/HoleView.tsx");
-    expect(view.includes("mb-score-chip"), "score chips must remain").toBe(true);
-    expect(view.includes("mb-caddie"), "the caddie panel must remain").toBe(true);
-  });
+  // Tests 4 (recap route key-safety) and 5 (Mode B on-course UI) were retired with
+  // the Play surface in Mission S2 — the recap route and the on-course HoleView no
+  // longer exist. The round persistence functions they leaned on (createRound,
+  // upsertRoundHole, getRound, computeScoringWeaknesses) stay in the SHARED @gai/api
+  // data layer and are covered by tests 1–3 above.
 });
