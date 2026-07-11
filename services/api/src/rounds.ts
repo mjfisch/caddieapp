@@ -59,13 +59,36 @@ export type RoundDeps = {
 
 // ── Create / upsert ─────────────────────────────────────────────────────────
 
+// Server-side mirrors of the 012 DB CHECK lists (Mission S3). These are layer 2
+// of the three-layer validation coupling recorded in DECISIONS.md D23 — the
+// Claude-side payload schema, this server layer, and the DB CHECKs move
+// together. Widen one, widen all.
+export const DIFFERENTIAL_SOURCES = ["cdga_posted", "computed_adjusted"] as const;
+export type DifferentialSource = (typeof DIFFERENTIAL_SOURCES)[number];
+
+export const FAIRWAY_RESULTS = ["hit", "miss_left", "miss_right"] as const;
+export type FairwayResult = (typeof FAIRWAY_RESULTS)[number];
+
 export type CreateRoundInput = {
   courseId: string;
   playedDate: string;
   teeSet?: string | null;
+  /** Nullable pending S4: legacy rounds predate tee boxes; the sync requires it. */
+  teeBoxId?: string | null;
+  /** D23: stored, never computed in-app — arrives on the payload, NOT NULL in the DB. */
+  differential: number;
+  differentialSource: DifferentialSource;
+  /** The D22 sync idempotency key (YYYY-MM-DD_course-slug), UNIQUE NOT NULL. */
+  externalKey: string;
+  reflection?: string | null;
 };
 
-/** Insert a new round row. Returns its id. Validates the FK + date up front. */
+/**
+ * Insert a new round row. Returns its id. Validates the FKs + date up front.
+ * Moves in lockstep with migration 012 (Mission S3): differential,
+ * differential_source, and external_key are NOT NULL, so every writer must
+ * supply them — there is no legacy three-field insert path anymore.
+ */
 export async function createRound(
   input: CreateRoundInput,
   deps: RoundDeps = {},
@@ -76,20 +99,49 @@ export async function createRound(
   if (typeof input.playedDate !== "string" || input.playedDate.trim() === "") {
     throw new RoundError(400, "playedDate is required");
   }
+  if (typeof input.differential !== "number" || !Number.isFinite(input.differential)) {
+    throw new RoundError(400, "differential must be a finite number");
+  }
+  if (!DIFFERENTIAL_SOURCES.includes(input.differentialSource)) {
+    throw new RoundError(
+      400,
+      `differentialSource must be one of: ${DIFFERENTIAL_SOURCES.join(", ")}`,
+    );
+  }
+  if (typeof input.externalKey !== "string" || input.externalKey.trim() === "") {
+    throw new RoundError(400, "externalKey is required");
+  }
 
   const pool = deps.pool ?? getPool();
   try {
     const { rows } = await pool.query<{ id: string }>(
-      `INSERT INTO round (course_id, played_date, tee_set)
-       VALUES ($1, $2, $3)
+      `INSERT INTO round
+         (course_id, played_date, tee_set, tee_box_id,
+          differential, differential_source, external_key, reflection)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id`,
-      [input.courseId, input.playedDate, input.teeSet?.trim() || "white"],
+      [
+        input.courseId,
+        input.playedDate,
+        input.teeSet?.trim() || "white",
+        input.teeBoxId?.trim() || null,
+        input.differential,
+        input.differentialSource,
+        input.externalKey.trim(),
+        input.reflection ?? null,
+      ],
     );
     return { roundId: rows[0]!.id };
   } catch (err) {
-    // A bad courseId trips the FK — surface it as a 400, not a 500.
+    // A duplicate external_key is a conflict, not a bad reference — check it
+    // before the FK match ("duplicate key … violates unique constraint" would
+    // otherwise hit the /violates/ branch below).
+    if (err instanceof Error && /duplicate key/i.test(err.message)) {
+      throw new RoundError(409, "a round with this externalKey already exists");
+    }
+    // A bad courseId/teeBoxId trips an FK — surface it as a 400, not a 500.
     if (err instanceof Error && /foreign key|violates/i.test(err.message)) {
-      throw new RoundError(400, "unknown courseId");
+      throw new RoundError(400, "unknown courseId or teeBoxId");
     }
     throw new RoundError(
       500,

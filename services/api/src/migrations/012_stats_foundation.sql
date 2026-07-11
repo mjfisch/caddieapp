@@ -58,3 +58,81 @@ CREATE TABLE IF NOT EXISTS tee_box (
 
 -- Read-path index (house convention: index the FKs the reads hit).
 CREATE INDEX IF NOT EXISTS tee_box_course_idx ON tee_box (course_id);
+
+-- ── 3. round — tee_box FK, differential, source, reflection, external_key ──
+
+-- FK direction (the Mission 2 drill-FK lesson): a tee_box is a REFERENCE that
+-- round history points back to, so round.tee_box_id is ON DELETE RESTRICT —
+-- the DB refuses to delete a tee box that has logged rounds. Reference tables
+-- never take round history down with them (and rounds are never deleted
+-- anyway, D24). Nullable DELIBERATELY: the two existing is_test rounds
+-- predate tee boxes; the S4 sync validator requires tee_box_id on every
+-- imported round.
+ALTER TABLE round
+  ADD COLUMN IF NOT EXISTS tee_box_id uuid REFERENCES tee_box(id) ON DELETE RESTRICT;
+
+CREATE INDEX IF NOT EXISTS round_tee_box_idx ON round (tee_box_id);
+
+-- differential + differential_source + external_key follow the same sequence:
+-- add NULLABLE → backfill existing rows → tighten to NOT NULL, so the
+-- constraints land with every row already valid. reflection stays nullable.
+ALTER TABLE round ADD COLUMN IF NOT EXISTS differential        numeric;
+ALTER TABLE round ADD COLUMN IF NOT EXISTS differential_source text;
+ALTER TABLE round ADD COLUMN IF NOT EXISTS reflection          text;
+ALTER TABLE round ADD COLUMN IF NOT EXISTS external_key        text;
+
+-- Backfill: the pre-S3 rows are the two live-flow test rounds (Jun 5 / Jun 13,
+-- is_test = true, D18). They predate differentials and get 0 /
+-- 'computed_adjusted' as explicit placeholders. The UPDATEs cover ALL null
+-- rows — not just is_test — so SET NOT NULL below cannot trip on a stray
+-- fixture row; any non-test row caught is reported first (flag, don't guess).
+DO $$
+DECLARE
+  stray bigint;
+BEGIN
+  SELECT count(*) INTO stray FROM round WHERE differential IS NULL AND is_test = false;
+  IF stray > 0 THEN
+    RAISE NOTICE '[012] % non-test round(s) had no differential — backfilled with the 0 / computed_adjusted placeholders', stray;
+  END IF;
+END $$;
+
+UPDATE round SET differential = 0 WHERE differential IS NULL;
+UPDATE round SET differential_source = 'computed_adjusted' WHERE differential_source IS NULL;
+
+-- CHECK layer 3 of the header's coupling; layers 1–2 are the payload schema
+-- and the S4 sync validator. ADD CONSTRAINT validates existing rows — the
+-- backfill above already made them legal.
+ALTER TABLE round DROP CONSTRAINT IF EXISTS round_differential_source_check;
+ALTER TABLE round ADD CONSTRAINT round_differential_source_check
+  CHECK (differential_source IN ('cdga_posted','computed_adjusted'));
+
+ALTER TABLE round ALTER COLUMN differential        SET NOT NULL;
+ALTER TABLE round ALTER COLUMN differential_source SET NOT NULL;
+
+-- external_key: the D22 sync idempotency key, canonically YYYY-MM-DD_course-slug.
+-- Legacy rows get a synthetic key from their own date + course slug (the two
+-- test rounds become 2026-06-05_fox-bend / 2026-06-13_fox-bend). Guards so the
+-- UNIQUE index below can never fail the migration on stray rows: a slug-less
+-- course falls back to a course-id fragment, and same-day-same-course
+-- duplicates get a numeric suffix.
+WITH keyed AS (
+  SELECT r.id,
+         to_char(r.played_date, 'YYYY-MM-DD') || '_'
+           || COALESCE(c.slug, 'course-' || left(r.course_id::text, 8), 'unknown') AS base_key,
+         row_number() OVER (
+           PARTITION BY r.played_date, r.course_id
+           ORDER BY r.created_at, r.id
+         ) AS rn
+    FROM round r
+    LEFT JOIN course c ON c.id = r.course_id
+   WHERE r.external_key IS NULL
+)
+UPDATE round
+   SET external_key = keyed.base_key
+         || CASE WHEN keyed.rn = 1 THEN '' ELSE '-' || keyed.rn::text END
+  FROM keyed
+ WHERE round.id = keyed.id;
+
+CREATE UNIQUE INDEX IF NOT EXISTS round_external_key_key ON round (external_key);
+
+ALTER TABLE round ALTER COLUMN external_key SET NOT NULL;

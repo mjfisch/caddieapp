@@ -59,7 +59,15 @@ describe.skipIf(!hasDb)("Mission 2 — server delete, cascade, and is_test exclu
     await runMigrations();
     const pool = getPool();
     const courseId = await makeCourse("Mission2 Delete Course");
-    const { roundId } = await createRound({ courseId, playedDate: "2026-06-06" });
+    // differential/differentialSource/externalKey became NOT NULL with
+    // migration 012 (Mission S3) — every writer supplies them now.
+    const { roundId } = await createRound({
+      courseId,
+      playedDate: "2026-06-06",
+      differential: 0,
+      differentialSource: "computed_adjusted",
+      externalKey: "2026-06-06_mission2-delete",
+    });
     for (let h = 1; h <= 3; h++) {
       await upsertRoundHole(roundId, { holeNumber: h, strokes: 4, putts: 2 });
     }
@@ -117,7 +125,13 @@ describe.skipIf(!hasDb)("Mission 2 — server delete, cascade, and is_test exclu
   it("4. is_test excludes a round from the scoring-weakness query; un-marking includes it again (D-5-1)", async () => {
     await runMigrations();
     const courseId = await makeCourse("Mission2 IsTest Course");
-    const { roundId } = await createRound({ courseId, playedDate: "2026-06-06" });
+    const { roundId } = await createRound({
+      courseId,
+      playedDate: "2026-06-06",
+      differential: 0,
+      differentialSource: "computed_adjusted",
+      externalKey: "2026-06-06_mission2-istest",
+    });
     // 18 holes, 4 three-putts → 4/18 = 22.2%, well past the 7.8% weakness threshold.
     for (let h = 1; h <= 18; h++) {
       await upsertRoundHole(roundId, { holeNumber: h, strokes: 4, putts: h <= 4 ? 3 : 2 });
