@@ -508,10 +508,15 @@ describe("Phase 5 — rounds: persistence, upsert idempotency, scoring weaknesse
     async () => {
       await runMigrations();
       const courseId = await makeCourse("Phase5 Round-Trip Course");
+      // differential/differentialSource/externalKey became NOT NULL with
+      // migration 012 (Mission S3) — every writer supplies them now.
       const { roundId } = await createRound({
         courseId,
         playedDate: "2026-06-05",
         teeSet: "white",
+        differential: 4.2,
+        differentialSource: "computed_adjusted",
+        externalKey: "2026-06-05_phase5-round-trip",
       });
       expect(roundId).toMatch(/^[0-9a-f-]{36}$/);
 
@@ -528,7 +533,13 @@ describe("Phase 5 — rounds: persistence, upsert idempotency, scoring weaknesse
     async () => {
       await runMigrations();
       const courseId = await makeCourse("Phase5 Upsert Course");
-      const { roundId } = await createRound({ courseId, playedDate: "2026-06-05" });
+      const { roundId } = await createRound({
+        courseId,
+        playedDate: "2026-06-05",
+        differential: 0,
+        differentialSource: "computed_adjusted",
+        externalKey: "2026-06-05_phase5-upsert",
+      });
 
       await upsertRoundHole(roundId, { holeNumber: 1, strokes: 5, putts: 2 });
       await upsertRoundHole(roundId, { holeNumber: 1, strokes: 4, putts: 1 });
@@ -548,8 +559,15 @@ describe("Phase 5 — rounds: persistence, upsert idempotency, scoring weaknesse
       const courseId = await makeCourse("Phase5 Weakness Course");
 
       // 3 rounds, 18 holes each = 54 holes; 2 three-putts per round = 6/54 = 11.1%.
+      // external_key is UNIQUE, so same-day fixtures need distinct keys.
       for (let r = 0; r < 3; r++) {
-        const { roundId } = await createRound({ courseId, playedDate: "2026-06-05" });
+        const { roundId } = await createRound({
+          courseId,
+          playedDate: "2026-06-05",
+          differential: 0,
+          differentialSource: "computed_adjusted",
+          externalKey: `2026-06-05_phase5-weakness-${r + 1}`,
+        });
         for (let h = 1; h <= 18; h++) {
           await upsertRoundHole(roundId, { holeNumber: h, strokes: 4, putts: h <= 2 ? 3 : 2 });
         }

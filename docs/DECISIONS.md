@@ -107,6 +107,7 @@ Rounds live in the repo as `data/rounds/*.json`, one file per round. A build-tim
 Each round payload carries its scoring differential, captured at prep time: the CDGA-posted value when available (Michael provides the CDGA app screenshot), otherwise computed by Claude using proper adjusted-gross (net double bogey) math during prep.
 
 - **Consequence: no hole stroke-index in the schema.** Rating and slope are kept on the tee box for reference and payload validation only.
+- **S3 coupling note (2026-07-11, Mission S3):** the DB CHECKs added in `012_stats_foundation.sql` (`differential_source`, `fairway_result`) and the S4 sync validator are coupled validation layers that must move together — with the Claude-side payload schema they form the three-layer contract (payload schema / sync validator / DB CHECK; server mirror lists `DIFFERENTIAL_SOURCES` / `FAIRWAY_RESULTS` in `services/api/src/rounds.ts`, drift-guarded by `tests/stats-schema.test.ts`). The par-3 NULL rule for `fairway_result` is deliberately NOT a DB CHECK (`round_hole` has no FK to `hole`, so a CHECK cannot reach `hole.par`) — it is enforced only by the S4 sync validator.
 
 ## D24 — Rounds are never deleted (RESOLVED, 2026-07-10, Stats redesign S1)
 

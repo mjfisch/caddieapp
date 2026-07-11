@@ -28,8 +28,10 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/rounds — create a new round. Body: { courseId, playedDate, teeSet? }.
- * Returns { roundId }.
+ * POST /api/rounds — create a new round. Body: { courseId, playedDate,
+ * differential, differentialSource, externalKey, teeSet?, teeBoxId?,
+ * reflection? } — the last three schema fields landed with migration 012
+ * (Mission S3) and are validated in createRound. Returns { roundId }.
  */
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -39,7 +41,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
 
-  const { courseId, playedDate, teeSet } = (body ?? {}) as Record<string, unknown>;
+  const {
+    courseId,
+    playedDate,
+    teeSet,
+    teeBoxId,
+    differential,
+    differentialSource,
+    externalKey,
+    reflection,
+  } = (body ?? {}) as Record<string, unknown>;
 
   try {
     await runMigrations();
@@ -47,6 +58,13 @@ export async function POST(req: NextRequest) {
       courseId: courseId as string,
       playedDate: playedDate as string,
       teeSet: typeof teeSet === "string" ? teeSet : null,
+      teeBoxId: typeof teeBoxId === "string" ? teeBoxId : null,
+      differential: differential as number,
+      differentialSource: differentialSource as Parameters<
+        typeof createRound
+      >[0]["differentialSource"],
+      externalKey: externalKey as string,
+      reflection: typeof reflection === "string" ? reflection : null,
     });
     return NextResponse.json({ roundId }, { status: 201 });
   } catch (err) {

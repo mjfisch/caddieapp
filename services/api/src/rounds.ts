@@ -59,13 +59,36 @@ export type RoundDeps = {
 
 // ── Create / upsert ─────────────────────────────────────────────────────────
 
+// Server-side mirrors of the 012 DB CHECK lists (Mission S3). These are layer 2
+// of the three-layer validation coupling recorded in DECISIONS.md D23 — the
+// Claude-side payload schema, this server layer, and the DB CHECKs move
+// together. Widen one, widen all.
+export const DIFFERENTIAL_SOURCES = ["cdga_posted", "computed_adjusted"] as const;
+export type DifferentialSource = (typeof DIFFERENTIAL_SOURCES)[number];
+
+export const FAIRWAY_RESULTS = ["hit", "miss_left", "miss_right"] as const;
+export type FairwayResult = (typeof FAIRWAY_RESULTS)[number];
+
 export type CreateRoundInput = {
   courseId: string;
   playedDate: string;
   teeSet?: string | null;
+  /** Nullable pending S4: legacy rounds predate tee boxes; the sync requires it. */
+  teeBoxId?: string | null;
+  /** D23: stored, never computed in-app — arrives on the payload, NOT NULL in the DB. */
+  differential: number;
+  differentialSource: DifferentialSource;
+  /** The D22 sync idempotency key (YYYY-MM-DD_course-slug), UNIQUE NOT NULL. */
+  externalKey: string;
+  reflection?: string | null;
 };
 
-/** Insert a new round row. Returns its id. Validates the FK + date up front. */
+/**
+ * Insert a new round row. Returns its id. Validates the FKs + date up front.
+ * Moves in lockstep with migration 012 (Mission S3): differential,
+ * differential_source, and external_key are NOT NULL, so every writer must
+ * supply them — there is no legacy three-field insert path anymore.
+ */
 export async function createRound(
   input: CreateRoundInput,
   deps: RoundDeps = {},
@@ -76,20 +99,49 @@ export async function createRound(
   if (typeof input.playedDate !== "string" || input.playedDate.trim() === "") {
     throw new RoundError(400, "playedDate is required");
   }
+  if (typeof input.differential !== "number" || !Number.isFinite(input.differential)) {
+    throw new RoundError(400, "differential must be a finite number");
+  }
+  if (!DIFFERENTIAL_SOURCES.includes(input.differentialSource)) {
+    throw new RoundError(
+      400,
+      `differentialSource must be one of: ${DIFFERENTIAL_SOURCES.join(", ")}`,
+    );
+  }
+  if (typeof input.externalKey !== "string" || input.externalKey.trim() === "") {
+    throw new RoundError(400, "externalKey is required");
+  }
 
   const pool = deps.pool ?? getPool();
   try {
     const { rows } = await pool.query<{ id: string }>(
-      `INSERT INTO round (course_id, played_date, tee_set)
-       VALUES ($1, $2, $3)
+      `INSERT INTO round
+         (course_id, played_date, tee_set, tee_box_id,
+          differential, differential_source, external_key, reflection)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id`,
-      [input.courseId, input.playedDate, input.teeSet?.trim() || "white"],
+      [
+        input.courseId,
+        input.playedDate,
+        input.teeSet?.trim() || "white",
+        input.teeBoxId?.trim() || null,
+        input.differential,
+        input.differentialSource,
+        input.externalKey.trim(),
+        input.reflection ?? null,
+      ],
     );
     return { roundId: rows[0]!.id };
   } catch (err) {
-    // A bad courseId trips the FK — surface it as a 400, not a 500.
+    // A duplicate external_key is a conflict, not a bad reference — check it
+    // before the FK match ("duplicate key … violates unique constraint" would
+    // otherwise hit the /violates/ branch below).
+    if (err instanceof Error && /duplicate key/i.test(err.message)) {
+      throw new RoundError(409, "a round with this externalKey already exists");
+    }
+    // A bad courseId/teeBoxId trips an FK — surface it as a 400, not a 500.
     if (err instanceof Error && /foreign key|violates/i.test(err.message)) {
-      throw new RoundError(400, "unknown courseId");
+      throw new RoundError(400, "unknown courseId or teeBoxId");
     }
     throw new RoundError(
       500,
@@ -102,7 +154,12 @@ export type UpsertRoundHoleInput = {
   holeNumber: number;
   strokes: number;
   putts?: number | null;
-  fairwayHit?: boolean | null;
+  /**
+   * Directional fairway outcome (migration 012). NULL on par 3s — the S4 sync
+   * validator enforces that rule; here NULL is simply legal. The old
+   * fairway_hit boolean is DEPRECATED: this module no longer reads or writes it.
+   */
+  fairwayResult?: FairwayResult | null;
   gir?: boolean | null;
   penaltyStrokes?: number | null;
   notes?: string | null;
@@ -126,17 +183,23 @@ export async function upsertRoundHole(
   if (!Number.isInteger(input?.strokes) || input.strokes < 1) {
     throw new RoundError(400, "strokes must be a positive integer");
   }
+  if (input.fairwayResult != null && !FAIRWAY_RESULTS.includes(input.fairwayResult)) {
+    throw new RoundError(
+      400,
+      `fairwayResult must be one of: ${FAIRWAY_RESULTS.join(", ")} (or null)`,
+    );
+  }
 
   const pool = deps.pool ?? getPool();
   try {
     await pool.query(
       `INSERT INTO round_hole
-         (round_id, hole_number, strokes, putts, fairway_hit, gir, penalty_strokes, notes)
+         (round_id, hole_number, strokes, putts, fairway_result, gir, penalty_strokes, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (round_id, hole_number) DO UPDATE SET
          strokes         = EXCLUDED.strokes,
          putts           = EXCLUDED.putts,
-         fairway_hit     = EXCLUDED.fairway_hit,
+         fairway_result  = EXCLUDED.fairway_result,
          gir             = EXCLUDED.gir,
          penalty_strokes = EXCLUDED.penalty_strokes,
          notes           = EXCLUDED.notes`,
@@ -145,7 +208,7 @@ export async function upsertRoundHole(
         input.holeNumber,
         input.strokes,
         input.putts ?? null,
-        input.fairwayHit ?? null,
+        input.fairwayResult ?? null,
         input.gir ?? null,
         input.penaltyStrokes ?? 0,
         input.notes ?? null,
@@ -170,7 +233,8 @@ export type RoundHoleView = {
   yardageWhite: number | null;
   strokes: number;
   putts: number | null;
-  fairwayHit: boolean | null;
+  /** NULL = par 3 or unknown-direction legacy row (fairway_hit is deprecated). */
+  fairwayResult: FairwayResult | null;
   gir: boolean | null;
   penaltyStrokes: number | null;
   notes: string | null;
@@ -221,13 +285,13 @@ export async function getRound(
     yardage_white: number | null;
     strokes: number;
     putts: number | null;
-    fairway_hit: boolean | null;
+    fairway_result: FairwayResult | null;
     gir: boolean | null;
     penalty_strokes: number | null;
     notes: string | null;
   }>(
     `SELECT rh.hole_number, h.par, h.yardage_white, rh.strokes, rh.putts,
-            rh.fairway_hit, rh.gir, rh.penalty_strokes, rh.notes
+            rh.fairway_result, rh.gir, rh.penalty_strokes, rh.notes
        FROM round_hole rh
        LEFT JOIN hole h ON h.course_id = $2 AND h.number = rh.hole_number
       WHERE rh.round_id = $1
@@ -248,7 +312,7 @@ export async function getRound(
       yardageWhite: h.yardage_white,
       strokes: h.strokes,
       putts: h.putts,
-      fairwayHit: h.fairway_hit,
+      fairwayResult: h.fairway_result,
       gir: h.gir,
       penaltyStrokes: h.penalty_strokes,
       notes: h.notes,
@@ -411,8 +475,10 @@ export function summarizeRound(detail: RoundDetail): RoundStats {
   const puttHoles = holes.filter((h) => h.putts != null);
   const totalPutts = puttHoles.length ? puttHoles.reduce((s, h) => s + (h.putts ?? 0), 0) : null;
 
-  const fairwayHoles = holes.filter((h) => h.fairwayHit != null);
-  const fairwaysHit = fairwayHoles.filter((h) => h.fairwayHit === true).length;
+  // Denominator = holes with a known fairway outcome (design doc §4.3): par 3s
+  // and unknown-direction legacy rows carry NULL and never count.
+  const fairwayHoles = holes.filter((h) => h.fairwayResult != null);
+  const fairwaysHit = fairwayHoles.filter((h) => h.fairwayResult === "hit").length;
   const fairwaysPossible = fairwayHoles.length;
 
   const gir = holes.filter((h) => h.gir === true).length;
@@ -477,7 +543,7 @@ export async function computeScoringWeaknesses(
     fairways_hit: string;
   }>(
     `WITH rh AS (
-       SELECT r.id AS round_id, rh.strokes, rh.putts, rh.fairway_hit, rh.gir, h.par
+       SELECT r.id AS round_id, rh.strokes, rh.putts, rh.fairway_result, rh.gir, h.par
          FROM round r
          JOIN round_hole rh ON rh.round_id = r.id
          LEFT JOIN hole h ON h.course_id = r.course_id AND h.number = rh.hole_number
@@ -490,8 +556,8 @@ export async function computeScoringWeaknesses(
        COUNT(*) FILTER (WHERE par IS NOT NULL AND strokes >= par + 2)::int                 AS doubles,
        COUNT(*) FILTER (WHERE gir = false)::int                                            AS gir_missed,
        COUNT(*) FILTER (WHERE gir = false AND par IS NOT NULL AND strokes <= par)::int     AS scrambles_made,
-       COUNT(*) FILTER (WHERE fairway_hit IS NOT NULL)::int                                AS fairway_attempts,
-       COUNT(*) FILTER (WHERE fairway_hit = true)::int                                     AS fairways_hit
+       COUNT(*) FILTER (WHERE fairway_result IS NOT NULL)::int                             AS fairway_attempts,
+       COUNT(*) FILTER (WHERE fairway_result = 'hit')::int                                 AS fairways_hit
      FROM rh`,
     params,
   );
