@@ -39,3 +39,22 @@ UPDATE course
    SET slug = 'fox-bend'
  WHERE name = 'Fox Bend Golf Course'
    AND slug IS NULL;
+
+-- ── 2. tee_box — new reference table (design doc §3; D23) ──────────────────
+-- Rating and slope live here for reference + payload validation ONLY — the
+-- differential arrives pre-computed on every round payload and is never
+-- computed in-app (D23). yardage is optional. course_id CASCADE matches the
+-- hole ownership pattern: a course owns its tee boxes. No seed rows — tee
+-- boxes are created by the S4 sync from round payloads.
+
+CREATE TABLE IF NOT EXISTS tee_box (
+  id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id uuid NOT NULL REFERENCES course(id) ON DELETE CASCADE,
+  name      text NOT NULL,
+  rating    numeric NOT NULL,
+  slope     int NOT NULL,
+  yardage   int
+);
+
+-- Read-path index (house convention: index the FKs the reads hit).
+CREATE INDEX IF NOT EXISTS tee_box_course_idx ON tee_box (course_id);
