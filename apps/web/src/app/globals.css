@@ -1374,3 +1374,165 @@ a:hover { text-decoration: underline; }
   font-size: 7.5px;
   font-weight: 500;
 }
+
+/* ── Stats tab (Mission S6) — three windows × seven derived stat groups ──────
+   The approved mockup's visual language. Spec-fixed section palette: card
+   surface #0d1524 / border #1a2438 / muted #8b95a8 / miss-coral #f0997b /
+   miss-blue #85b7eb / neutral #24304a, over the house bg + green. The
+   left/hit/right split relies on segment ORDER + the labeled percentages
+   beneath (not hue alone) — the green↔coral pair is CVD-weak, so the labels
+   are load-bearing, not decoration. */
+.st-page {
+  --st-card: #0d1524;
+  --st-border: #1a2438;
+  --st-muted: #8b95a8;
+  --st-coral: #f0997b;
+  --st-blue: #85b7eb;
+  --st-neutral: #24304a;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+  padding: 32px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.st-header { display: flex; flex-direction: column; gap: 10px; }
+.st-title {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1.05;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+/* Filter pills — active = solid green, inactive = outlined. */
+.st-pills { display: flex; gap: 8px; margin-top: -6px; }
+.st-pill {
+  appearance: none;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: transparent;
+  border: 1px solid var(--st-border);
+  color: var(--st-muted);
+}
+.st-pill:hover { color: var(--text); border-color: var(--line2); }
+.st-pill.on {
+  background: var(--green);
+  border-color: var(--green);
+  color: #05240f;
+}
+
+/* Hero strip — the three large numerals. */
+.st-hero { display: flex; gap: 26px; }
+.st-hero-cell { display: flex; flex-direction: column; gap: 6px; }
+.st-hero-num {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+.st-hero-num em { font-style: normal; font-size: 17px; font-weight: 600; }
+.st-hero-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--st-muted);
+}
+
+/* Section label — green mono eyebrow, one per stat group. */
+.st-label {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+/* Stacked proportion bar + its labeled legend row. The 2px gaps between
+   segments are the secondary separation for the CVD-weak green↔coral pair. */
+.st-bar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+}
+.st-seg { display: block; min-width: 3px; }
+.st-seg-left { background: var(--st-coral); }
+.st-seg-hit { background: var(--green); }
+.st-seg-right { background: var(--st-blue); }
+.st-seg-mid { background: var(--st-neutral); }
+.st-bar-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.st-lg-left { color: var(--st-coral); }
+.st-lg-hit { color: var(--green); }
+.st-lg-right { color: var(--st-blue); }
+.st-lg-mid { color: var(--st-muted); }
+
+/* Scoring vs par — three small delta cards. */
+.st-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.st-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 16px 8px 13px;
+  border-radius: 12px;
+  background: var(--st-card);
+  border: 1px solid var(--st-border);
+}
+.st-card-num { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+.st-card-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--st-muted);
+}
+
+/* Distribution — four-column numeral row. */
+.st-dist { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.st-dist-cell { display: flex; flex-direction: column; gap: 6px; }
+.st-dist-num { font-size: 24px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; color: var(--text); }
+.st-dist-good { color: var(--green); }
+.st-dist-bad { color: var(--st-coral); }
+.st-dist-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--st-muted);
+}
+
+/* Sparse-data honesty — the plain empty state + per-section fallbacks. */
+.st-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 26px 20px;
+  border-radius: 14px;
+  background: var(--st-card);
+  border: 1px solid var(--st-border);
+}
+.st-empty-line { margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.st-empty-sub { margin: 0; font-size: 13px; line-height: 1.5; color: var(--st-muted); }
+.st-none { margin: 0; font-size: 13px; color: var(--st-muted); }
+
+.st-caption { margin: -6px 0 0; font-size: 11.5px; color: var(--faint); }

@@ -41,6 +41,12 @@ export {
 } from "./seedDispersion";
 export { getBagClubs, getClubShotCounts, type BagClub } from "./bag";
 export {
+  listStatsRounds,
+  type StatsRoundRow,
+  type StatsRoundHoleRow,
+  type StatsDeps,
+} from "./stats";
+export {
   createPracticeSession,
   listPracticeSessions,
   deletePracticeSession,
