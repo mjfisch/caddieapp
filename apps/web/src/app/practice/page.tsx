@@ -35,12 +35,6 @@ type Drill = {
   resource_kind: string;
 };
 type Rec = { priority: number; area: string; signal: string; drill: string; why: string };
-type ClubConf = {
-  club: string;
-  dataConfidence: "measured" | "partial" | "seeded" | null;
-  feelLevel: number | null;
-  note: string | null;
-};
 type SessionBlock = {
   drillTitle: string;
   note: string | null;
@@ -83,12 +77,6 @@ const SESSION_TYPES = [
   { id: "around_green", label: "Around the green", sub: "Chip · pitch · flop · bunker", feeds: "feel" },
   { id: "putting", label: "Putting", sub: "Drill blocks · lag & gate", feeds: "feel" },
 ] as const satisfies readonly { id: SessionTypeId; label: string; sub: string; feeds: "data" | "feel" }[];
-
-const CONFIDENCE_COLOR: Record<string, string> = {
-  measured: "var(--green)",
-  partial: "var(--amber)",
-  seeded: "var(--faint)",
-};
 
 // Keeps entries for BOTH retired types so history renders: short_game has 7
 // legacy rows; net has zero today, but the label is cheap insurance. Legacy is
@@ -180,8 +168,7 @@ export default function PracticePage() {
   const [saveOk, setSaveOk] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // ── Confidence + history ──
-  const [clubs, setClubs] = useState<ClubConf[]>([]);
+  // ── History ──
   const [sessions, setSessions] = useState<Session[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -191,17 +178,6 @@ export default function PracticePage() {
   // Default date to today on the client (avoids a hydration mismatch).
   useEffect(() => {
     setDate(new Date().toISOString().slice(0, 10));
-  }, []);
-
-  const loadConfidence = useCallback(async () => {
-    try {
-      const res = await fetch("/api/practice/confidence");
-      if (!res.ok) return;
-      const j = (await res.json()) as { clubs: ClubConf[] };
-      setClubs(j.clubs ?? []);
-    } catch {
-      /* leave panel empty on failure */
-    }
   }, []);
 
   const loadSessions = useCallback(async () => {
@@ -238,11 +214,10 @@ export default function PracticePage() {
   }, []);
 
   useEffect(() => {
-    void loadConfidence();
     void loadSessions();
     void loadDrills();
     void loadClubs();
-  }, [loadConfidence, loadSessions, loadDrills, loadClubs]);
+  }, [loadSessions, loadDrills, loadClubs]);
 
   // ── Coach: POST + stream ──
   async function getPlan() {
@@ -397,21 +372,6 @@ export default function PracticePage() {
       setDeleteError(err instanceof Error ? err.message : "Network error.");
     } finally {
       setDeletingId(null);
-    }
-  }
-
-  // ── Confidence: tap a feel segment ──
-  async function setFeel(club: string, level: number) {
-    // optimistic
-    setClubs((prev) => prev.map((c) => (c.club === club ? { ...c, feelLevel: level } : c)));
-    try {
-      await fetch("/api/practice/confidence", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ club, feel_level: level }),
-      });
-    } catch {
-      void loadConfidence(); // reconcile on failure
     }
   }
 
@@ -673,52 +633,7 @@ export default function PracticePage() {
         {saveError && <p className="pr-err">{saveError}</p>}
       </div>
 
-      {/* D — club confidence */}
-      <div className="pr-label">
-        <span>Club confidence</span>
-        <span className="pr-t" style={{ fontFamily: "var(--font-mono), monospace", fontSize: 10 }}>
-          DATA · FEEL
-        </span>
-      </div>
-      <p className="pr-conf-help">
-        Data confidence is objective (shot count). Feel confidence is yours to set.
-      </p>
-      <div className="pr-conf">
-        {clubs.map((c) => {
-          const feel = c.feelLevel ?? 0;
-          const lvlClass = feel <= 1 ? "lo" : feel <= 2 ? "mid" : "";
-          const flab = feel === 0 ? "—" : feel <= 1 ? "LOW" : feel <= 2 ? "MED" : "HIGH";
-          const dc = c.dataConfidence;
-          return (
-            <div className="pr-conf-card" key={c.club}>
-              {feel >= 1 && feel <= 2 && <span className="pr-lowdot" aria-label="low trust" />}
-              <div className="pr-conf-top">
-                <span className="pr-conf-club">{c.club}</span>
-                {dc && (
-                  <span className="pr-dc" style={{ color: CONFIDENCE_COLOR[dc] }}>
-                    {dc}
-                  </span>
-                )}
-              </div>
-              <div className="pr-feel">
-                {[1, 2, 3, 4].map((i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    aria-label={`set feel ${i}`}
-                    className={`pr-bar${i <= feel ? ` fill ${lvlClass}` : ""}`}
-                    onClick={() => setFeel(c.club, i)}
-                  />
-                ))}
-                <span className="pr-flab">{flab}</span>
-              </div>
-            </div>
-          );
-        })}
-        {clubs.length === 0 && <p className="pr-empty">Loading the bag…</p>}
-      </div>
-
-      {/* E — session history */}
+      {/* D — session history */}
       <div className="pr-label">Recent sessions</div>
       {deleteError && <p className="pr-err">{deleteError}</p>}
       <div className="pr-hist">
