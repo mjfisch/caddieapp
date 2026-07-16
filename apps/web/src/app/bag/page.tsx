@@ -7,6 +7,7 @@ import {
   SHOT_TARGET,
 } from "./bagView";
 import { ClubRow } from "./ClubRow";
+import { ClubConfidence } from "./ClubConfidence";
 
 // DB-backed, server-only (mirrors /play). pg needs the Node runtime; the data is
 // live, so never statically cache. INVARIANT #3: this reads @gai/api on the
@@ -178,6 +179,8 @@ export default async function BagPage() {
           Dispersion is the measured 1-SD lateral spread in yards · lower is tighter
         </p>
       </section>
+
+      <ClubConfidence />
     </main>
   );
 }
