@@ -47,6 +47,15 @@ export {
   type StatsDeps,
 } from "./stats";
 export {
+  listPracticeStats,
+  type PracticeStatsPayload,
+  type PracticeStatsSessionRow,
+  type PracticeStatsBlockRow,
+  type PracticeStatsDrillValueRow,
+  type PracticeStatsMetricDefRow,
+  type PracticeStatsDeps,
+} from "./practiceStats";
+export {
   createPracticeSession,
   listPracticeSessions,
   deletePracticeSession,
