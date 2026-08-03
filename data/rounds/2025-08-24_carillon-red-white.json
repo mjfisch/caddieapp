@@ -1,0 +1,166 @@
+{
+  "external_key": "2025-08-24_carillon-red-white",
+  "date": "2025-08-24",
+  "course": {
+    "name": "The Links at Carillon - Red/White",
+    "slug": "carillon-red-white"
+  },
+  "tee_box": {
+    "name": "Blue",
+    "rating": 70.6,
+    "slope": 125,
+    "yardage": null
+  },
+  "score": {
+    "gross": 81,
+    "differential": 9.4,
+    "differential_source": "cdga_posted"
+  },
+  "holes": [
+    {
+      "hole": 1,
+      "par": 5,
+      "strokes": 6,
+      "putts": 3,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 2,
+      "par": 4,
+      "strokes": 3,
+      "putts": 1,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 3,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 4,
+      "par": 3,
+      "strokes": 3,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 5,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 6,
+      "par": 5,
+      "strokes": 6,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 7,
+      "par": 3,
+      "strokes": 4,
+      "putts": 3,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 8,
+      "par": 4,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": false
+    },
+    {
+      "hole": 9,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 10,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 11,
+      "par": 5,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 12,
+      "par": 3,
+      "strokes": 4,
+      "putts": 3,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 13,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 14,
+      "par": 4,
+      "strokes": 5,
+      "putts": 3,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 15,
+      "par": 3,
+      "strokes": 3,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 16,
+      "par": 4,
+      "strokes": 5,
+      "putts": 3,
+      "fairway_result": "miss_left",
+      "gir": true
+    },
+    {
+      "hole": 17,
+      "par": 4,
+      "strokes": 5,
+      "putts": 3,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 18,
+      "par": 5,
+      "strokes": 7,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    }
+  ],
+  "reflection": null
+}

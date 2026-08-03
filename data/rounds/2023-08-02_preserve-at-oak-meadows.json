@@ -1,0 +1,166 @@
+{
+  "external_key": "2023-08-02_preserve-at-oak-meadows",
+  "date": "2023-08-02",
+  "course": {
+    "name": "Preserve at Oak Meadows",
+    "slug": "preserve-at-oak-meadows"
+  },
+  "tee_box": {
+    "name": "Black",
+    "rating": 72.4,
+    "slope": 138,
+    "yardage": null
+  },
+  "score": {
+    "gross": 84,
+    "differential": 9.5,
+    "differential_source": "cdga_posted"
+  },
+  "holes": [
+    {
+      "hole": 1,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 2,
+      "par": 5,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": true
+    },
+    {
+      "hole": 3,
+      "par": 3,
+      "strokes": 4,
+      "putts": 1,
+      "fairway_result": null,
+      "gir": false
+    },
+    {
+      "hole": 4,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 5,
+      "par": 5,
+      "strokes": 7,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": false
+    },
+    {
+      "hole": 6,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 7,
+      "par": 4,
+      "strokes": 6,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": false
+    },
+    {
+      "hole": 8,
+      "par": 3,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": false
+    },
+    {
+      "hole": 9,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 10,
+      "par": 3,
+      "strokes": 3,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 11,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 12,
+      "par": 4,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": false
+    },
+    {
+      "hole": 13,
+      "par": 5,
+      "strokes": 5,
+      "putts": 1,
+      "fairway_result": "miss_left",
+      "gir": false
+    },
+    {
+      "hole": 14,
+      "par": 4,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 15,
+      "par": 5,
+      "strokes": 6,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 16,
+      "par": 4,
+      "strokes": 5,
+      "putts": 1,
+      "fairway_result": "miss_left",
+      "gir": false
+    },
+    {
+      "hole": 17,
+      "par": 3,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": false
+    },
+    {
+      "hole": 18,
+      "par": 4,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    }
+  ],
+  "reflection": null
+}
