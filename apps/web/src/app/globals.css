@@ -1536,3 +1536,198 @@ a:hover { text-decoration: underline; }
 .st-none { margin: 0; font-size: 13px; color: var(--st-muted); }
 
 .st-caption { margin: -6px 0 0; font-size: 11.5px; color: var(--faint); }
+
+/* ── Stats tab · PRACTICE view (Mission S8) ─────────────────────────────────
+   Shares the S6 section palette declared on .st-page (card / border / muted /
+   coral / blue / neutral) and adds one token: the mix bar's grass olive. The
+   ROUNDS · PRACTICE toggle is the segmented pattern; below it the practice
+   view reuses .st-pills for its own 4W / 12W / YTD windows.
+
+   Drill plots carry NO trendline by design: the blocks were logged at
+   different parameters (Distance), so a connecting line would assert a
+   comparison the data does not support. Color is never the only channel —
+   every dot's parameter is printed (lower-is-better) or legended
+   (higher-is-better), because the green↔coral pair is CVD-weak. */
+.st-page { --st-amber: #d8c46a; --st-olive: #a8bd52; }
+
+/* Segmented ROUNDS · PRACTICE toggle. */
+.ps-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--st-card);
+  border: 1px solid var(--st-border);
+}
+.ps-toggle-btn {
+  appearance: none;
+  cursor: pointer;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--st-muted);
+}
+.ps-toggle-btn:hover { color: var(--text); }
+.ps-toggle-btn.on { background: var(--green); color: #05240f; }
+
+/* Weekly outing bars. A zero week keeps its column and renders a flat stub —
+   never omitted, never interpolated over. */
+.ps-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 72px;
+}
+.ps-barcol { flex: 1; display: flex; align-items: flex-end; }
+.ps-bar {
+  display: block;
+  width: 100%;
+  border-radius: 3px;
+  background: var(--green);
+}
+.ps-bar.zero { background: var(--st-neutral); }
+.ps-bars-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--st-muted);
+}
+.ps-bars-cap { color: var(--faint); }
+
+/* Session mix — stacked proportion bar + its counted legend. */
+.ps-mix-putting { background: var(--green); }
+.ps-mix-trackman { background: var(--st-blue); }
+.ps-mix-around_green { background: #a9e3c4; }
+.ps-mix-grass_range { background: var(--st-olive); }
+.ps-mix-legacy { background: var(--st-neutral); }
+.ps-mix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ps-mixlg-putting { color: var(--green); }
+.ps-mixlg-trackman { color: var(--st-blue); }
+.ps-mixlg-around_green { color: #a9e3c4; }
+.ps-mixlg-grass_range { color: var(--st-olive); }
+.ps-mixlg-legacy { color: var(--st-muted); }
+.ps-note {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--st-muted);
+}
+
+/* Drill cards. */
+.ps-drills { display: flex; flex-direction: column; gap: 12px; }
+.ps-drill {
+  padding: 16px 16px 13px;
+  border-radius: 14px;
+  background: var(--st-card);
+  border: 1px solid var(--st-border);
+}
+.ps-drill-hd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-bottom: 12px;
+}
+.ps-drill-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.ps-drill-metric { font-size: 11.5px; color: var(--st-muted); }
+.ps-drill-latest {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--st-muted);
+  white-space: nowrap;
+}
+.ps-drill-latest b { font-size: 15px; font-weight: 700; }
+.ps-drill-latest b.good { color: var(--green); }
+.ps-drill-latest b.adverse { color: var(--st-coral); }
+.ps-drill-cap {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
+/* The clean/reset strip — one cell per block, oldest to newest. */
+.ps-strip { display: flex; gap: 6px; }
+.ps-cell {
+  flex: 1;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--green);
+}
+.ps-cell.adverse { background: var(--st-coral); }
+
+/* The point plot. */
+.ps-plot { display: block; width: 100%; height: auto; overflow: visible; }
+.ps-plot-val {
+  fill: var(--st-muted);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono), monospace;
+}
+.ps-plot-param {
+  fill: var(--st-muted);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono), monospace;
+}
+.ps-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--st-muted);
+}
+.ps-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+/* Tag + club chips. A zero-count chip stays on the row, muted: a lie or shot
+   type nobody logged is information, not an absence to hide. */
+.ps-tagrow { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.ps-tagrow-lbl {
+  flex: none;
+  width: 44px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.ps-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ps-chip {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--st-card);
+  border: 1px solid var(--st-border);
+  color: var(--text);
+}
+.ps-chip em { font-style: normal; color: var(--st-muted); }
+.ps-chip-zero { color: var(--faint); border-style: dashed; }
+.ps-chip-zero em { color: var(--faint); }
+.ps-chip-more { color: var(--st-muted); background: transparent; }
