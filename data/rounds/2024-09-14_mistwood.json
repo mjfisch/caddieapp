@@ -1,0 +1,166 @@
+{
+  "external_key": "2024-09-14_mistwood",
+  "date": "2024-09-14",
+  "course": {
+    "name": "Mistwood Golf Club",
+    "slug": "mistwood"
+  },
+  "tee_box": {
+    "name": "Black",
+    "rating": 72.0,
+    "slope": 141,
+    "yardage": null
+  },
+  "score": {
+    "gross": 75,
+    "differential": 2.4,
+    "differential_source": "cdga_posted"
+  },
+  "holes": [
+    {
+      "hole": 1,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 2,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 3,
+      "par": 5,
+      "strokes": 5,
+      "putts": 1,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 4,
+      "par": 4,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 5,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 6,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 7,
+      "par": 3,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": false
+    },
+    {
+      "hole": 8,
+      "par": 5,
+      "strokes": 4,
+      "putts": 1,
+      "fairway_result": "miss_left",
+      "gir": true
+    },
+    {
+      "hole": 9,
+      "par": 3,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": false
+    },
+    {
+      "hole": 10,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": true
+    },
+    {
+      "hole": 11,
+      "par": 4,
+      "strokes": 3,
+      "putts": 1,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 12,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 13,
+      "par": 4,
+      "strokes": 4,
+      "putts": 1,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 14,
+      "par": 3,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": false
+    },
+    {
+      "hole": 15,
+      "par": 5,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 16,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 17,
+      "par": 3,
+      "strokes": 3,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 18,
+      "par": 5,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    }
+  ],
+  "reflection": null
+}

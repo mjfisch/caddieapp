@@ -1,0 +1,166 @@
+{
+  "external_key": "2026-05-13_ruffled-feathers",
+  "date": "2026-05-13",
+  "course": {
+    "name": "Ruffled Feathers Golf Club",
+    "slug": "ruffled-feathers"
+  },
+  "tee_box": {
+    "name": "Blue",
+    "rating": 71.7,
+    "slope": 134,
+    "yardage": null
+  },
+  "score": {
+    "gross": 85,
+    "differential": 11.2,
+    "differential_source": "cdga_posted"
+  },
+  "holes": [
+    {
+      "hole": 1,
+      "par": 4,
+      "strokes": 4,
+      "putts": 1,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 2,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 3,
+      "par": 3,
+      "strokes": 4,
+      "putts": 3,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 4,
+      "par": 5,
+      "strokes": 6,
+      "putts": 1,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 5,
+      "par": 4,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 6,
+      "par": 5,
+      "strokes": 6,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": false
+    },
+    {
+      "hole": 7,
+      "par": 4,
+      "strokes": 5,
+      "putts": 1,
+      "fairway_result": "miss_left",
+      "gir": false
+    },
+    {
+      "hole": 8,
+      "par": 3,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": false
+    },
+    {
+      "hole": 9,
+      "par": 4,
+      "strokes": 6,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": false
+    },
+    {
+      "hole": 10,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 11,
+      "par": 3,
+      "strokes": 3,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 12,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": true
+    },
+    {
+      "hole": 13,
+      "par": 5,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 14,
+      "par": 4,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": false
+    },
+    {
+      "hole": 15,
+      "par": 5,
+      "strokes": 7,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": false
+    },
+    {
+      "hole": 16,
+      "par": 4,
+      "strokes": 6,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 17,
+      "par": 3,
+      "strokes": 3,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 18,
+      "par": 4,
+      "strokes": 5,
+      "putts": 3,
+      "fairway_result": "miss_right",
+      "gir": true
+    }
+  ],
+  "reflection": null
+}

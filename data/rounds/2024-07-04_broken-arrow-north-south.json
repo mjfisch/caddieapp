@@ -1,0 +1,166 @@
+{
+  "external_key": "2024-07-04_broken-arrow-north-south",
+  "date": "2024-07-04",
+  "course": {
+    "name": "Broken Arrow Golf Club - North/South",
+    "slug": "broken-arrow-north-south"
+  },
+  "tee_box": {
+    "name": "Blue",
+    "rating": 72.6,
+    "slope": 135,
+    "yardage": null
+  },
+  "score": {
+    "gross": 78,
+    "differential": 4.5,
+    "differential_source": "cdga_posted"
+  },
+  "holes": [
+    {
+      "hole": 1,
+      "par": 4,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 2,
+      "par": 4,
+      "strokes": 5,
+      "putts": 3,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 3,
+      "par": 3,
+      "strokes": 3,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 4,
+      "par": 5,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 5,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 6,
+      "par": 3,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": false
+    },
+    {
+      "hole": 7,
+      "par": 4,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 8,
+      "par": 4,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": false
+    },
+    {
+      "hole": 9,
+      "par": 5,
+      "strokes": 5,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": true
+    },
+    {
+      "hole": 10,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 11,
+      "par": 4,
+      "strokes": 3,
+      "putts": 1,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 12,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "miss_right",
+      "gir": true
+    },
+    {
+      "hole": 13,
+      "par": 3,
+      "strokes": 3,
+      "putts": 1,
+      "fairway_result": null,
+      "gir": false
+    },
+    {
+      "hole": 14,
+      "par": 5,
+      "strokes": 5,
+      "putts": 1,
+      "fairway_result": "miss_right",
+      "gir": false
+    },
+    {
+      "hole": 15,
+      "par": 3,
+      "strokes": 3,
+      "putts": 2,
+      "fairway_result": null,
+      "gir": true
+    },
+    {
+      "hole": 16,
+      "par": 4,
+      "strokes": 4,
+      "putts": 2,
+      "fairway_result": "hit",
+      "gir": true
+    },
+    {
+      "hole": 17,
+      "par": 5,
+      "strokes": 7,
+      "putts": 2,
+      "fairway_result": "miss_left",
+      "gir": false
+    },
+    {
+      "hole": 18,
+      "par": 4,
+      "strokes": 4,
+      "putts": 1,
+      "fairway_result": "miss_right",
+      "gir": false
+    }
+  ],
+  "reflection": null
+}
