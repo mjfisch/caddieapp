@@ -12,6 +12,8 @@ import type { FairwayResult } from "./rounds";
 // =============================================================
 
 export type StatsRoundHoleRow = {
+  /** 1–18, from round_hole — the scorecard grid's column key. */
+  holeNumber: number;
   par: number | null;
   strokes: number;
   putts: number | null;
@@ -22,6 +24,10 @@ export type StatsRoundHoleRow = {
 export type StatsRoundRow = {
   id: string;
   playedDate: string;
+  /** course.name — the round-listing row's identity line. */
+  courseName: string;
+  /** tee_box.name ("Red/White"), falling back to the legacy round.tee_set text. */
+  teeName: string;
   differential: number;
   isTest: boolean;
   holes: StatsRoundHoleRow[];
@@ -36,14 +42,21 @@ export type StatsDeps = { pool?: pg.Pool };
  * the derivation module excludes such holes rather than guessing. The three
  * §4 windows are query windows over this full list (D24 — nothing is ever
  * deleted), applied by the pure selectWindow(), not by SQL.
+ *
+ * Mission S10 adds course/tee identity and the hole number to the SAME query —
+ * the per-hole rows were already being read for the aggregates, so the round
+ * listing's expandable scorecard costs no extra round trip and no extra rows.
  */
 export async function listStatsRounds(deps: StatsDeps = {}): Promise<StatsRoundRow[]> {
   const pool = deps.pool ?? getPool();
   const { rows } = await pool.query<{
     id: string;
     played_date: string;
+    course_name: string | null;
+    tee_name: string | null;
     differential: string;
     is_test: boolean;
+    hole_number: number;
     par: number | null;
     strokes: number;
     putts: number | null;
@@ -52,12 +65,17 @@ export async function listStatsRounds(deps: StatsDeps = {}): Promise<StatsRoundR
   }>(
     `SELECT r.id,
             to_char(r.played_date, 'YYYY-MM-DD') AS played_date,
+            c.name AS course_name,
+            COALESCE(tb.name, initcap(r.tee_set)) AS tee_name,
             r.differential,
             r.is_test,
+            rh.hole_number,
             h.par,
             rh.strokes, rh.putts, rh.fairway_result, rh.gir
        FROM round r
        JOIN round_hole rh ON rh.round_id = r.id
+       LEFT JOIN course c ON c.id = r.course_id
+       LEFT JOIN tee_box tb ON tb.id = r.tee_box_id
        LEFT JOIN hole h ON h.course_id = r.course_id AND h.number = rh.hole_number
       WHERE r.is_test = false
       ORDER BY r.played_date DESC, r.created_at DESC, r.id, rh.hole_number`,
@@ -70,6 +88,10 @@ export async function listStatsRounds(deps: StatsDeps = {}): Promise<StatsRoundR
       current = {
         id: row.id,
         playedDate: row.played_date,
+        // LEFT JOINed so a round can never be dropped from the aggregates by a
+        // missing course row — the listing just labels it plainly.
+        courseName: row.course_name ?? "Unknown course",
+        teeName: row.tee_name ?? "—",
         // numeric comes back from pg as a string; the payload validator
         // guaranteed it finite on the way in.
         differential: Number(row.differential),
@@ -79,6 +101,7 @@ export async function listStatsRounds(deps: StatsDeps = {}): Promise<StatsRoundR
       out.push(current);
     }
     current.holes.push({
+      holeNumber: row.hole_number,
       par: row.par,
       strokes: row.strokes,
       putts: row.putts,
