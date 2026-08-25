@@ -13,7 +13,6 @@ import {
   type NineView,
   type StatsHole,
   type StatsRound,
-  type StatsWindow,
 } from "./computeStats";
 
 // =============================================================
@@ -29,15 +28,10 @@ import {
 // round's footer are then the same numbers by construction (D25).
 //
 // Every row is collapsed on load, including the newest; rows open independently.
+// An empty window renders nothing — the aggregate view owns that message.
 // =============================================================
 
-export function RoundList({
-  rounds,
-  window,
-}: {
-  rounds: StatsRound[];
-  window: StatsWindow;
-}) {
+export function RoundList({ rounds }: { rounds: StatsRound[] }) {
   // A set, not a single id: opening one round never closes another. Empty on
   // mount — no round is expanded by default.
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
@@ -49,27 +43,23 @@ export function RoundList({
       return next;
     });
 
+  // An empty window renders NOTHING here — the aggregate view above already
+  // says the window is empty, and two stacked messages read worse than one.
+  if (rounds.length === 0) return null;
+
   return (
     <section aria-label="Round by round">
       <h2 className="st-label mono">Round by round</h2>
-      {rounds.length === 0 ? (
-        <p className="st-none">
-          {window === "ytd"
-            ? "No rounds posted yet this year."
-            : "No rounds in this window."}
-        </p>
-      ) : (
-        <div className="rl-list">
-          {rounds.map((round) => (
-            <RoundRow
-              key={round.id}
-              round={round}
-              expanded={open.has(round.id)}
-              onToggle={() => toggle(round.id)}
-            />
-          ))}
-        </div>
-      )}
+      <div className="rl-list">
+        {rounds.map((round) => (
+          <RoundRow
+            key={round.id}
+            round={round}
+            expanded={open.has(round.id)}
+            onToggle={() => toggle(round.id)}
+          />
+        ))}
+      </div>
     </section>
   );
 }
@@ -99,7 +89,7 @@ function RoundRow({
         <span className="rl-meta">
           <span className="rl-date">{formatRoundDate(round.playedDate)}</span>
           <span className="rl-course">
-            {round.courseName} — {round.teeName}
+            {round.courseName} · {round.teeName}
           </span>
         </span>
         <span className="rl-score">

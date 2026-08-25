@@ -184,12 +184,10 @@ export function StatsView({
             {stats.rounds} round{stats.rounds === 1 ? "" : "s"} in this window · all figures
             derived from hole-by-hole data
           </p>
+
+          <RoundList rounds={windowed} />
         </>
       )}
-
-      {/* The listing renders in BOTH branches: it owns its own one-line empty
-          state (S10), and the aggregate empty panel above is left untouched. */}
-      <RoundList rounds={windowed} window={window} />
     </>
   );
 }
