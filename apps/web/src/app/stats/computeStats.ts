@@ -14,6 +14,8 @@
 export type StatsFairwayResult = "hit" | "miss_left" | "miss_right";
 
 export type StatsHole = {
+  /** 1–18. The scorecard grid's column key; the aggregates ignore it. */
+  holeNumber: number;
   /** From the course model (positional join) — null when the hole row is missing. */
   par: number | null;
   strokes: number;
@@ -24,8 +26,13 @@ export type StatsHole = {
 };
 
 export type StatsRound = {
+  /** round.id — stable React key + expansion identity for the S10 listing. */
+  id: string;
   /** YYYY-MM-DD — the window ordering key (the round table's played_date). */
   playedDate: string;
+  /** Identity for the S10 round listing; the aggregates ignore both. */
+  courseName: string;
+  teeName: string;
   /** Stored on the round, never computed in-app (D23). */
   differential: number;
   /** Test rounds are kept (D24) but excluded from every window (design doc §4). */
@@ -200,4 +207,107 @@ export function computeStats(rounds: StatsRound[]): StatGroups | null {
     parType,
     distribution,
   };
+}
+
+// =============================================================
+// Mission S10 — the round listing's per-round display helpers.
+//
+// Still pure, still the ONE derivation path: the expansion footer's figures
+// are computeStats([round]) — the same function the aggregate cards call, with
+// n=1 — so a single-round window's cards and that round's footer can never
+// disagree. Nothing below re-derives a stat; these are formatting and
+// scorecard layout only.
+// =============================================================
+
+/** Gross score = strokes actually recorded, matching StatGroups.avgScore at n=1. */
+export function roundGross(round: StatsRound): number {
+  return round.holes.reduce((t, h) => t + h.strokes, 0);
+}
+
+/**
+ * Par for the holes played. Null when NO hole carries a par (course model
+ * missing) — vs-par is then omitted rather than guessed. Holes with a null par
+ * are skipped, exactly as computeStats skips them.
+ */
+export function roundParTotal(round: StatsRound): number | null {
+  const scored = round.holes.filter((h) => h.par != null);
+  return scored.length ? scored.reduce((t, h) => t + (h.par as number), 0) : null;
+}
+
+/** Scorecard convention: level par is "E", everything else carries its sign. */
+export function formatVsPar(vsPar: number): string {
+  if (vsPar === 0) return "E";
+  return `${vsPar > 0 ? "+" : "−"}${Math.abs(vsPar)}`;
+}
+
+const MONTHS = [
+  "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+  "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+] as const;
+
+/**
+ * "2026-08-22" → "22 AUG 2026". Parsed off the ISO string rather than through
+ * Date, so the rendered day can never drift a step by timezone.
+ */
+export function formatRoundDate(playedDate: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(playedDate);
+  if (!m) return playedDate;
+  const month = MONTHS[Number(m[2]) - 1];
+  return month ? `${Number(m[3])} ${month} ${m[1]}` : playedDate;
+}
+
+/** How a score cell is annotated on paper: circled under par, boxed over it. */
+export type ScoreMark = "eagle" | "birdie" | "par" | "bogey" | "double" | "none";
+
+/** Null par (missing course row) → "none": never a mark we can't justify. */
+export function scoreMark(hole: StatsHole): ScoreMark {
+  if (hole.par == null) return "none";
+  const d = hole.strokes - hole.par;
+  if (d <= -2) return "eagle";
+  if (d === -1) return "birdie";
+  if (d === 0) return "par";
+  if (d === 1) return "bogey";
+  return "double";
+}
+
+/** One nine of the scorecard grid: its holes in order plus the Out/In totals. */
+export type NineView = {
+  /** "Out" (holes 1–9) or "In" (holes 10–18). */
+  label: string;
+  /** Exactly the holes of this nine that were actually recorded, in order. */
+  holes: StatsHole[];
+  par: number | null;
+  strokes: number;
+  putts: number | null;
+  /** Greens hit on this nine. */
+  gir: number;
+  /** Fairways hit on this nine (known-direction holes only). */
+  fairways: number;
+};
+
+/**
+ * Split a round into front and back nine for the two stacked tables. A nine
+ * with no recorded holes comes back null so the caller renders one table for a
+ * nine-hole round rather than an empty grid of dashes. Totals are simple sums
+ * of the cells directly above them — not stats, just column arithmetic.
+ */
+export function splitNines(round: StatsRound): { front: NineView | null; back: NineView | null } {
+  const nine = (label: string, lo: number, hi: number): NineView | null => {
+    const holes = round.holes
+      .filter((h) => h.holeNumber >= lo && h.holeNumber <= hi)
+      .sort((a, b) => a.holeNumber - b.holeNumber);
+    if (!holes.length) return null;
+    const withPar = holes.filter((h) => h.par != null);
+    const withPutts = holes.filter((h) => h.putts != null);
+    return {
+      label,
+      holes,
+      par: withPar.length ? withPar.reduce((t, h) => t + (h.par as number), 0) : null,
+      strokes: holes.reduce((t, h) => t + h.strokes, 0),
+      putts: withPutts.length ? withPutts.reduce((t, h) => t + (h.putts as number), 0) : null,
+      gir: holes.filter((h) => h.gir === true).length,
+      fairways: holes.filter((h) => h.fairwayResult === "hit").length,
+    };
+  };
+  return { front: nine("Out", 1, 9), back: nine("In", 10, 18) };
 }

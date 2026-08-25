@@ -10,12 +10,17 @@ import {
   type StatsRound,
   type StatsWindow,
 } from "./computeStats";
+import { RoundList } from "./RoundList";
 
 // =============================================================
 // Mission S6 — the Stats tab surface: three filter pills over the seven §4
 // stat groups, per the approved mockup. The server page loads ALL non-test
 // rounds once; a filter switch recomputes client-side through the same pure
 // computeStats module the tests pin — no second derivation path (D25).
+//
+// Mission S10 hangs the round-by-round listing off the SAME windowed array the
+// cards are derived from — one filter control, one dataset, one ordering
+// (Hcp 8 arrives differential-ascending straight from selectWindow).
 // =============================================================
 
 export function StatsView({
@@ -26,10 +31,11 @@ export function StatsView({
   currentYear: number;
 }) {
   const [window, setWindow] = useState<StatsWindow>("last20");
-  const stats = useMemo(
-    () => computeStats(selectWindow(rounds, window, currentYear)),
+  const windowed = useMemo(
+    () => selectWindow(rounds, window, currentYear),
     [rounds, window, currentYear],
   );
+  const stats = useMemo(() => computeStats(windowed), [windowed]);
 
   return (
     <>
@@ -178,6 +184,8 @@ export function StatsView({
             {stats.rounds} round{stats.rounds === 1 ? "" : "s"} in this window · all figures
             derived from hole-by-hole data
           </p>
+
+          <RoundList rounds={windowed} />
         </>
       )}
     </>
