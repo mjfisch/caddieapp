@@ -42,6 +42,16 @@ npm test             # round-trip (needs DATABASE_URL) + invariant guards
 2. **Vercel:** import the repo, set root to the monorepo, add env vars `DATABASE_URL` (and later `ANTHROPIC_API_KEY`) as **server-side** (no `NEXT_PUBLIC_`), deploy.
 3. Open the deployment, click **Ping the backend** → a `hello` round-trips through the Vercel function and Postgres. Done.
 
+### Preview database
+
+Preview deployments use the persistent Neon branch `preview`, never production (D30); the app runs pending migrations on first request, so a migration PR's preview applies them only to `preview`. To refresh it from production:
+
+```bash
+npx neonctl branches reset preview --parent --project-id holy-salad-20902185
+```
+
+This resets `preview` to production's current state and discards everything on it, including preview-only migrations. Re-open the preview to re-apply them.
+
 ## The invariants
 
 See `CLAUDE.md`. The short version: math in code (never the LLM); confidence flags propagate; the API key is server-side only; the LLM never invents URLs; the five layers compose in order with accuracy winning; the personas are locked. `npm test` guards them.
