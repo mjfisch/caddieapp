@@ -3,6 +3,7 @@ import type pg from "pg";
 import { getPool, runMigrations } from "./db";
 import { ROUND_FILES, type RoundFile } from "./rounds.generated";
 import { validateRoundPayload, type RoundPayload } from "./roundPayload";
+import { computeTotalStrokes } from "./rounds";
 
 // =============================================================
 // Mission S4 — the D22 data-as-code round sync.
@@ -206,11 +207,17 @@ async function importRound(client: pg.PoolClient, payload: RoundPayload): Promis
   }
 
   // ── the round + its 18 holes, all in this same transaction ────────────────
+  // total_strokes is written with the round, from the same 18 holes inserted
+  // below (the validator guarantees a complete card whose sum === score.gross),
+  // via the shared computeTotalStrokes rule rather than trusting score.gross.
+  const totalStrokes = computeTotalStrokes(
+    payload.holes.map((h) => ({ holeNumber: h.hole, strokes: h.strokes })),
+  );
   const roundRes = await client.query<{ id: string }>(
     `INSERT INTO round
        (course_id, played_date, tee_set, tee_box_id,
-        differential, differential_source, external_key, reflection)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        differential, differential_source, external_key, reflection, total_strokes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING id`,
     [
       courseId,
@@ -221,6 +228,7 @@ async function importRound(client: pg.PoolClient, payload: RoundPayload): Promis
       payload.score.differential_source,
       payload.external_key,
       payload.reflection,
+      totalStrokes,
     ],
   );
   const roundId = roundRes.rows[0]!.id;

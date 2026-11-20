@@ -571,6 +571,12 @@ describe("Phase 5 — rounds: persistence, upsert idempotency, scoring weaknesse
         for (let h = 1; h <= 18; h++) {
           await upsertRoundHole(roundId, { holeNumber: h, strokes: 4, putts: h <= 2 ? 3 : 2 });
         }
+        // The 18th hole save completes the card, so round.total_strokes is set.
+        const { rows: tot } = await getPool().query<{ total_strokes: number | null }>(
+          "SELECT total_strokes FROM round WHERE id = $1",
+          [roundId],
+        );
+        expect(tot[0]!.total_strokes).toBe(72);
       }
 
       // Scoped to this synthetic course so the assertion is deterministic regardless

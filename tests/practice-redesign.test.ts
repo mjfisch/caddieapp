@@ -305,14 +305,14 @@ describe.skipIf(!hasDb)("Mission 2 — practice redesign schema round-trip", () 
       { label: "Makes", unit: null, value: 5 },
     ]);
 
-    // All nine metric values are present across the three blocks.
+    // All seven metric values (1 + 3 + 3) are present across the three blocks.
     const valueCount = await pool.query(
       `SELECT count(*)::int AS n FROM session_drill_value v
          JOIN session_drill_block b ON b.id = v.block_id
         WHERE b.practice_session_id = $1`,
       [id],
     );
-    expect((valueCount.rows[0] as { n: number }).n).toBe(9);
+    expect((valueCount.rows[0] as { n: number }).n).toBe(7);
 
     // Delete cascades blocks + values to zero (session_drill_block/_value FKs).
     const { deleted } = await deletePracticeSession(id);

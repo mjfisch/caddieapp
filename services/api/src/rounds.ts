@@ -166,8 +166,37 @@ export type UpsertRoundHoleInput = {
 };
 
 /**
+ * round.total_strokes from a round's holes: the gross score ONLY when the card is
+ * complete — exactly 18 rows covering holes 1–18 once each, every one with a
+ * stroke count. Anything less (a partial round, a gap, a duplicate) is null:
+ * a 9-hole sum must never read as an 18-hole gross. Pure; the single TS home of
+ * the rule (migration 015's backfill is its SQL twin — move them together).
+ */
+export function computeTotalStrokes(
+  holes: readonly { holeNumber: number; strokes: number | null | undefined }[],
+): number | null {
+  if (holes.length !== 18) return null;
+  const seen = new Set<number>();
+  let total = 0;
+  for (const h of holes) {
+    if (!Number.isInteger(h.holeNumber) || h.holeNumber < 1 || h.holeNumber > 18) return null;
+    if (seen.has(h.holeNumber)) return null;
+    seen.add(h.holeNumber);
+    if (typeof h.strokes !== "number" || !Number.isInteger(h.strokes)) return null;
+    total += h.strokes;
+  }
+  return total;
+}
+
+/**
  * Upsert one hole's score on (round_id, hole_number). A re-tap UPDATES rather than
  * duplicates (test 2). strokes is required (NOT NULL); the rest are optional.
+ *
+ * The hole write and the round.total_strokes recompute share ONE transaction,
+ * with the round row locked first (FOR UPDATE) so two concurrent hole saves on
+ * the same round serialize and the second always sums the first's row. The
+ * total is set when the card reaches 18 complete holes and recomputed (or
+ * cleared back to NULL) on every later change.
  */
 export async function upsertRoundHole(
   roundId: string,
@@ -191,8 +220,13 @@ export async function upsertRoundHole(
   }
 
   const pool = deps.pool ?? getPool();
+  const client = await pool.connect();
   try {
-    await pool.query(
+    await client.query("BEGIN");
+    const locked = await client.query("SELECT 1 FROM round WHERE id = $1 FOR UPDATE", [roundId]);
+    if (!locked.rowCount) throw new RoundError(400, "unknown roundId");
+
+    await client.query(
       `INSERT INTO round_hole
          (round_id, hole_number, strokes, putts, fairway_result, gir, penalty_strokes, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -214,7 +248,23 @@ export async function upsertRoundHole(
         input.notes ?? null,
       ],
     );
+
+    const { rows: holes } = await client.query<{ hole_number: number; strokes: number }>(
+      "SELECT hole_number, strokes FROM round_hole WHERE round_id = $1",
+      [roundId],
+    );
+    await client.query("UPDATE round SET total_strokes = $2 WHERE id = $1", [
+      roundId,
+      computeTotalStrokes(holes.map((h) => ({ holeNumber: h.hole_number, strokes: h.strokes }))),
+    ]);
+    await client.query("COMMIT");
   } catch (err) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* connection already broken */
+    }
+    if (err instanceof RoundError) throw err;
     if (err instanceof Error && /foreign key|violates/i.test(err.message)) {
       throw new RoundError(400, "unknown roundId");
     }
@@ -222,6 +272,8 @@ export async function upsertRoundHole(
       500,
       `could not save hole: ${err instanceof Error ? err.message : String(err)}`,
     );
+  } finally {
+    client.release();
   }
 }
 
@@ -331,7 +383,12 @@ export type RoundSummary = {
   isTest: boolean;
 };
 
-/** All rounds for a course, newest first, each with its total + score vs par. */
+/**
+ * All rounds for a course, newest first, each with its total + score vs par.
+ * Sums round_hole.strokes live rather than reading round.total_strokes: that
+ * column is NULL for an incomplete card, and this list wants the running total
+ * of whatever holes exist.
+ */
 export async function listRounds(
   courseId: string,
   deps: RoundDeps = {},

@@ -42,6 +42,7 @@ export {
 export { getBagClubs, getClubShotCounts, type BagClub } from "./bag";
 export {
   listStatsRounds,
+  getHandicapIndex,
   type StatsRoundRow,
   type StatsRoundHoleRow,
   type StatsDeps,
@@ -87,6 +88,7 @@ export {
 export {
   createRound,
   upsertRoundHole,
+  computeTotalStrokes,
   getRound,
   listRounds,
   deleteRound,

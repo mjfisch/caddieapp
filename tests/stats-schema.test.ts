@@ -142,7 +142,7 @@ describe.skipIf(!hasDb)("012 constraints against the live schema", () => {
 
     // The reference table must never take round history down with it.
     await expect(pool.query("DELETE FROM tee_box WHERE id = $1", [teeBox!.id])).rejects.toThrow(
-      /violates foreign key constraint/i,
+      /violates (?:RESTRICT setting of )?foreign key constraint/i, // PG ≤17 | PG18 wording
     );
 
     // The round survived the attempt.

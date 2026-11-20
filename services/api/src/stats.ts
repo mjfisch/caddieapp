@@ -1,5 +1,6 @@
 import "server-only";
 import type pg from "pg";
+import { computeHandicapIndex, HANDICAP_RECORD_SIZE, type HandicapIndexResult } from "@gai/sg-engine";
 import { getPool } from "./db";
 import type { FairwayResult } from "./rounds";
 
@@ -110,4 +111,27 @@ export async function listStatsRounds(deps: StatsDeps = {}): Promise<StatsRoundR
     });
   }
   return out;
+}
+
+/**
+ * The Home header's Handicap Index. Loads the stored differentials of the 20
+ * most recent non-test rounds (played_date, then created_at — the same order
+ * listStatsRounds uses) and hands them to the pure WHS calculation in
+ * @gai/sg-engine (invariant #1: no arithmetic here). `index` is null below
+ * three rounds. Callers own DB readiness (syncRounds) and DB-down fallback.
+ */
+export async function getHandicapIndex(deps: StatsDeps = {}): Promise<HandicapIndexResult> {
+  const pool = deps.pool ?? getPool();
+  const { rows } = await pool.query<{ played_date: string; differential: string }>(
+    `SELECT to_char(r.played_date, 'YYYY-MM-DD') AS played_date, r.differential
+       FROM round r
+      WHERE r.is_test = false
+      ORDER BY r.played_date DESC, r.created_at DESC
+      LIMIT $1`,
+    [HANDICAP_RECORD_SIZE],
+  );
+  return computeHandicapIndex(
+    // numeric arrives from pg as a string; NOT NULL since 012.
+    rows.map((r) => ({ playedDate: r.played_date, differential: Number(r.differential) })),
+  );
 }
