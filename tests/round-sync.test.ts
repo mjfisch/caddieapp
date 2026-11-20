@@ -184,7 +184,8 @@ describe.skipIf(!hasDb)("D22 round sync against the live schema", () => {
 
     const { rows: roundRows } = await pool.query(
       `SELECT r.id, r.differential::float8 AS differential, r.differential_source,
-              r.reflection, r.is_test, to_char(r.played_date, 'YYYY-MM-DD') AS played_date,
+              r.reflection, r.is_test, r.total_strokes,
+              to_char(r.played_date, 'YYYY-MM-DD') AS played_date,
               c.slug AS course_slug, t.name AS tee_name, t.rating::float8 AS rating,
               t.slope, t.yardage
          FROM round r
@@ -249,6 +250,9 @@ describe.skipIf(!hasDb)("D22 round sync against the live schema", () => {
       { strokes: 0, putts: 0, gir: 0 },
     );
     expect(totals).toEqual({ strokes: 81, putts: 32, gir: 10 });
+    // round.total_strokes is stored on import (or by the 015 backfill for a
+    // round imported before the writers set it) and equals the hole sum.
+    expect(round.total_strokes).toBe(81);
     const split = { hit: 0, miss_left: 0, miss_right: 0, none: 0 };
     for (const h of holes) {
       if (h.fairway_result === null) split.none++;

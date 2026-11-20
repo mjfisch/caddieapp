@@ -1,5 +1,33 @@
 import Link from "next/link";
+import { getHandicapIndex, syncRounds } from "@gai/api";
 import { CONFIDENCE_COLOR, type ConfidenceFlag } from "@gai/shared";
+
+// DB-backed, server-only (mirrors /stats and /bag): the header handicap is read
+// live. pg needs the Node runtime; never statically cache. INVARIANT #3: @gai/api
+// stays server-side.
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/**
+ * The WHS Handicap Index (computed in @gai/sg-engine from stored differentials),
+ * or null when there are fewer than 3 rounds OR the DB is unavailable. Home must
+ * always render, and a missing number shows as "—", never a placeholder.
+ */
+async function loadHandicapIndex(): Promise<number | null> {
+  try {
+    await syncRounds();
+    return (await getHandicapIndex()).index;
+  } catch (err) {
+    console.error("[home] handicap unavailable:", err);
+    return null;
+  }
+}
+
+/** "8.7"; a plus index (below scratch) reads "+1.3", as golfers write it. */
+function formatIndex(index: number | null): string {
+  if (index == null) return "—";
+  return index < 0 ? `+${Math.abs(index).toFixed(1)}` : index.toFixed(1);
+}
 
 const FLAGS: { flag: ConfidenceFlag; label: string }[] = [
   { flag: "measured", label: "measured" },
@@ -57,7 +85,8 @@ const ENTRIES: {
   { href: "/practice", title: "Practice", sub: "Log sessions, get a coach plan", icon: "target" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const hcp = await loadHandicapIndex();
   return (
     <main className="lp-page">
       {/* Top app-bar — brand left, handicap right. */}
@@ -74,7 +103,7 @@ export default function Home() {
           </span>
         </div>
         <span className="lp-hcp mono">
-          <em>HCP</em> 2.1
+          <em>HCP</em> {formatIndex(hcp)}
         </span>
       </header>
 

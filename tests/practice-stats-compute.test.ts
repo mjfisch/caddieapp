@@ -342,6 +342,58 @@ describe("Lag Ladder: every point carries the Distance it was logged at", () => 
   });
 });
 
+describe("Past Ladder: 014's better values give one Short-scored card", () => {
+  // The six defs exactly as 013 seeded them, with 014's `better` applied.
+  const PAST_LADDER_DEFS: PracticeMetricDef[] = [
+    { drillTitle: "Past Ladder", label: "Distance", valueType: "integer", unit: "ft", better: null, sortOrder: 0 },
+    { drillTitle: "Past Ladder", label: "Balls", valueType: "integer", unit: null, better: null, sortOrder: 1 },
+    { drillTitle: "Past Ladder", label: "Short", valueType: "integer", unit: null, better: "lower", sortOrder: 2 },
+    { drillTitle: "Past Ladder", label: "In zone", valueType: "integer", unit: null, better: "higher", sortOrder: 3 },
+    { drillTitle: "Past Ladder", label: "Long", valueType: "integer", unit: null, better: "lower", sortOrder: 4 },
+    { drillTitle: "Past Ladder", label: "Longest comeback", valueType: "integer", unit: "ft", better: "lower", sortOrder: 5 },
+  ];
+  const pl = (date: string, v: Record<string, number>) =>
+    session(date, "putting", { blocks: [block("Past Ladder", 0, v)] });
+  const sessions = [
+    pl("2026-11-02", { Distance: 30, Balls: 10, Short: 6, "In zone": 3, Long: 1, "Longest comeback": 7 }),
+    pl("2026-11-05", { Distance: 30, Balls: 10, Short: 3, "In zone": 5, Long: 2, "Longest comeback": 6 }),
+    pl("2026-11-09", { Distance: 45, Balls: 10, Short: 2, "In zone": 6, Long: 2, "Longest comeback": 5 }),
+  ];
+  const drills = computePracticeStats(sessions, [...METRIC_DEFS, ...PAST_LADDER_DEFS])!.drills;
+  const card = drills.find((d) => d.drillTitle === "Past Ladder")!;
+
+  it("produces exactly one card even though four defs carry a direction", () => {
+    expect(drills.filter((d) => d.drillTitle === "Past Ladder")).toHaveLength(1);
+  });
+
+  it("scores Short (lower), the first directed def by sort_order, ahead of In zone", () => {
+    expect(card.primaryLabel).toBe("Short");
+    expect(card.better).toBe("lower");
+    expect(card.points.map((p) => p.value)).toEqual([6, 3, 2]);
+  });
+
+  it("keeps Distance as the parameter, never the Longest comeback outcome", () => {
+    expect(card.parameterLabel).toBe("Distance");
+    expect(card.parameterUnit).toBe("ft");
+    expect(card.points.map((p) => p.parameter)).toEqual([30, 30, 45]);
+  });
+
+  it("keeps Balls as the denominator, never the Long outcome", () => {
+    expect(card.denominator).toBe(10);
+  });
+
+  it("renders a trend and corals the window's worst Short", () => {
+    expect(card.render).toBe("trend");
+    expect(card.points.map((p) => p.adverse)).toEqual([true, false, false]);
+  });
+
+  it("with 013's all-NULL defs the drill was skipped, the state 014 fixes", () => {
+    const unscored = PAST_LADDER_DEFS.map((d) => ({ ...d, better: null }));
+    const before = computePracticeStats(sessions, unscored)!.drills;
+    expect(before.map((d) => d.drillTitle)).not.toContain("Past Ladder");
+  });
+});
+
 describe("Circle Drill: distinct distances become the color legend", () => {
   const sessions = [
     session("2026-07-08", "putting", { blocks: [block("Circle Drill", 0, { Distance: 10, Balls: 10, Makes: 5 })] }),

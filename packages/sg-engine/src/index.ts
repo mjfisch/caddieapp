@@ -31,6 +31,15 @@ export { computeExpectedStrokes } from "./expectedStrokes";
 // Phase 4.5 surface — the practice signal ranker (the coach's deterministic half).
 export { rankPracticeSignals } from "./practiceRanker";
 export type { PracticeSignal, RankerInput } from "./practiceRanker";
+
+// Home handicap — the WHS Handicap Index over stored differentials.
+export {
+  computeHandicapIndex,
+  HANDICAP_MIN_ROUNDS,
+  HANDICAP_RECORD_SIZE,
+  HANDICAP_MAX_INDEX,
+} from "./handicap";
+export type { HandicapRound, HandicapIndexResult } from "./handicap";
 export type { Lie } from "./sgBaseline";
 export type { DispersionSample } from "./sampler";
 export type { LandingLie } from "./classifier";
