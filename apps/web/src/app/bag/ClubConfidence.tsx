@@ -45,11 +45,14 @@ export function ClubConfidence() {
   async function setFeel(club: string, level: number) {
     setClubs((prev) => prev.map((c) => (c.club === club ? { ...c, feelLevel: level } : c)));
     try {
-      await fetch("/api/practice/confidence", {
+      const res = await fetch("/api/practice/confidence", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ club, feel_level: level }),
       });
+      // A locked (401/503) or failed write must not leave the optimistic value
+      // on screen — reload the server truth. (Unlock this device at /unlock.)
+      if (!res.ok) void loadConfidence();
     } catch {
       void loadConfidence();
     }
