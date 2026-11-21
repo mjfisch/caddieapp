@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   computePracticeStats,
   selectPracticeWindow,
@@ -36,13 +36,17 @@ export function PracticeView({
   sessions,
   metricDefs,
   today,
+  window,
+  onWindowChange,
 }: {
   sessions: PracticeStatsSession[];
   metricDefs: PracticeMetricDef[];
   /** YYYY-MM-DD, resolved on the server — the module itself stays clock-free. */
   today: string;
+  /** Controlled by StatsTabs so the window round-trips through the URL (D31). */
+  window: PracticeWindow;
+  onWindowChange: (w: PracticeWindow) => void;
 }) {
-  const [window, setWindow] = useState<PracticeWindow>("4w");
   const stats = useMemo(
     () => computePracticeStats(selectPracticeWindow(sessions, window, today), metricDefs),
     [sessions, metricDefs, window, today],
@@ -57,7 +61,7 @@ export function PracticeView({
             role="tab"
             aria-selected={window === w}
             className={`st-pill mono${window === w ? " on" : ""}`}
-            onClick={() => setWindow(w)}
+            onClick={() => onWindowChange(w)}
           >
             {PRACTICE_WINDOW_LABELS[w]}
           </button>

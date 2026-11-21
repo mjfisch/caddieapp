@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   computeStats,
   formatSignedDelta,
   selectWindow,
   STATS_WINDOWS,
-  STATS_WINDOW_LABELS,
+  statsWindowLabel,
   type StatsRound,
   type StatsWindow,
 } from "./computeStats";
@@ -26,11 +26,23 @@ import { RoundList } from "./RoundList";
 export function StatsView({
   rounds,
   currentYear,
+  window,
+  onWindowChange,
 }: {
   rounds: StatsRound[];
   currentYear: number;
+  /** Controlled by StatsTabs so the window round-trips through the URL (D31). */
+  window: StatsWindow;
+  onWindowChange: (w: StatsWindow) => void;
 }) {
-  const [window, setWindow] = useState<StatsWindow>("last20");
+  // Per-window round counts, so a short window says so on its pill (D31).
+  const counts = useMemo(
+    () =>
+      Object.fromEntries(
+        STATS_WINDOWS.map((w) => [w, selectWindow(rounds, w, currentYear).length]),
+      ) as Record<StatsWindow, number>,
+    [rounds, currentYear],
+  );
   const windowed = useMemo(
     () => selectWindow(rounds, window, currentYear),
     [rounds, window, currentYear],
@@ -46,9 +58,9 @@ export function StatsView({
             role="tab"
             aria-selected={window === w}
             className={`st-pill mono${window === w ? " on" : ""}`}
-            onClick={() => setWindow(w)}
+            onClick={() => onWindowChange(w)}
           >
-            {STATS_WINDOW_LABELS[w]}
+            {statsWindowLabel(w, counts[w])}
           </button>
         ))}
       </div>

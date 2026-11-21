@@ -153,3 +153,9 @@ Source of truth is GolfLogix, which has hole-by-hole data **including fairway mi
 - **`preview` is a point-in-time copy that drifts.** Production writes made after the branch was cut do not appear on it, and migrations applied by any preview land only on `preview`. Previews share it, so two open migration PRs can collide there.
 - **Refresh** by resetting `preview` to production's current state (README → Deploy → Preview database). The reset discards everything on `preview`, including preview-only migrations; re-opening a preview re-applies them.
 - **Rule: never point Preview's `DATABASE_URL` at production.** A migration that needs isolation from other open PRs can still get its own throwaway, branch-scoped Neon branch.
+
+## D31 — /stats view and window are URL params, a stable contract for outside agents (RESOLVED, 2026-11-20)
+
+- **Contract.** `/stats?view=rounds|practice&window=<id>`. `view` defaults to `rounds`. `window` applies to the active view only: rounds `last20` (default) · `ytd` · `hcp8`; practice `4w` (default) · `12w` · `ytd`. Unknown, missing or cross-view values (e.g. `view=rounds&window=12w`) fall back to the defaults, never an error. Plain `/stats` is unchanged. These ids are a stable contract for bookmarks and outside agents; renaming one needs a decision-log entry.
+- **Server-parsed, client-mirrored.** The server page parses `searchParams` (pure `parseStatsParams`, `apps/web/src/app/stats/statsParams.ts`), so the first HTML is already the requested view. Tab/window clicks update the URL with `history.replaceState` (canonical query, defaults omitted): no navigation, no server refetch, no Back-button spam. Stats stay derived, never stored.
+- **Short windows say so.** A count-based window holding fewer rounds than its nominal size labels its pill with the real count (`Last 20 · 19`, `Hcp 8 · 5`); a full window keeps the plain label. YTD has no nominal size. Same D25/D28 honesty rule: show what exists, never imply more.
