@@ -105,5 +105,5 @@ This resets `preview` to production's current state and discards everything on i
 
 ## Decisions and invariants
 
-- `docs/DECISIONS.md` — the decision log (latest: **D30**; next free: D31). Anything that changes a locked choice needs an entry there.
+- `docs/DECISIONS.md` — the decision log, numbered in order (new entries go at the end; take the next number after the last entry). Anything that changes a locked choice needs an entry there.
 - `CLAUDE.md` (root + per-package) — the invariants. The short version: math in code (never the LLM); confidence flags propagate; the API key is server-side only; the LLM never invents URLs; the five layers compose in order with accuracy winning; the personas are locked. `npm test` guards them.
