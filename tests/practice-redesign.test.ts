@@ -5,6 +5,7 @@ import {
   createPracticeSession,
   listPracticeSessions,
   deletePracticeSession,
+  listPuttingDrills,
   PracticeError,
 } from "@gai/api";
 
@@ -163,6 +164,21 @@ describe.skipIf(!hasDb)("Mission 2 — practice redesign schema round-trip", () 
       `SELECT 1 FROM drill_metric_def dmd JOIN drill d ON d.id = dmd.drill_id WHERE d.title = 'General'`,
     );
     expect(generalDefs.rowCount).toBe(0);
+  });
+
+  it("3b. listPuttingDrills (GET /api/practice/drills) carries better per metric def", async () => {
+    await runMigrations();
+    const drills = await listPuttingDrills();
+    for (const d of drills) {
+      for (const m of d.metricDefs) {
+        expect([null, "lower", "higher"]).toContain(m.better);
+      }
+    }
+    const past = drills.find((d) => d.title === "Past Ladder");
+    expect(past, "Past Ladder should be listed").toBeTruthy();
+    const def = (label: string) => past!.metricDefs.find((m) => m.label === label);
+    expect(def("Short")).toMatchObject({ better: "lower" });
+    expect(def("Distance")).toMatchObject({ better: null, unit: "ft" });
   });
 
   it("4. putting session round-trip: block + value insert, read back, then cascade delete", async () => {

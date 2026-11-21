@@ -161,6 +161,8 @@ export type DrillMetricDef = {
   label: string;
   unit: string | null;
   valueType: string;
+  /** Scoring direction (drill_metric_def.better); null = unscored. */
+  better: "lower" | "higher" | null;
 };
 
 /** A putting drill in the block picker. General is the is_system, metric-less one. */

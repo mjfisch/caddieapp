@@ -199,7 +199,7 @@ describe("putting payload (drill blocks — Mission 4)", () => {
     uid: "b1",
     drillId: "gate-uuid",
     drillTitle: "Gate Drill (MJF variant)",
-    metricDefs: [{ id: "resets-uuid", label: "Resets", unit: null, valueType: "integer" }],
+    metricDefs: [{ id: "resets-uuid", label: "Resets", unit: null, valueType: "integer", better: "lower" }],
     values: { "resets-uuid": "2" },
     note: "",
   };
@@ -262,8 +262,8 @@ describe("putting payload (drill blocks — Mission 4)", () => {
       drillId: "lag-uuid",
       drillTitle: "Lag Ladder",
       metricDefs: [
-        { id: "dist", label: "Distance", unit: "ft", valueType: "integer" },
-        { id: "balls", label: "Balls", unit: null, valueType: "integer" },
+        { id: "dist", label: "Distance", unit: "ft", valueType: "integer", better: null },
+        { id: "balls", label: "Balls", unit: null, valueType: "integer", better: null },
       ],
       values: { dist: "", balls: "abc" },
       note: "",
