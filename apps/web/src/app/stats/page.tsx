@@ -1,5 +1,6 @@
 import { listPracticeStats, listStatsRounds, syncRounds } from "@gai/api";
 import { StatsTabs } from "./StatsTabs";
+import { parseStatsParams } from "./statsParams";
 
 // Stats tab — Mission S6 (D24/D25) + Mission S8 (D28). A clean data surface
 // covering BOTH halves of the record behind a ROUNDS · PRACTICE toggle.
@@ -22,7 +23,13 @@ function todayIso(now: Date): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-export default async function StatsPage() {
+export default async function StatsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // D31: ?view= / ?window= pick the first-render state; bad values → defaults.
+  const initial = parseStatsParams(await searchParams);
   await syncRounds();
   const [rounds, practice] = await Promise.all([listStatsRounds(), listPracticeStats()]);
   const now = new Date();
@@ -39,6 +46,7 @@ export default async function StatsPage() {
         practiceSessions={practice.sessions}
         practiceMetricDefs={practice.metricDefs}
         today={todayIso(now)}
+        initial={initial}
       />
     </main>
   );
