@@ -458,6 +458,8 @@ export type DrillMetricDefView = {
   label: string;
   unit: string | null;
   valueType: string;
+  /** Scoring direction from drill_metric_def.better; null = unscored (never invented). */
+  better: "lower" | "higher" | null;
 };
 
 export type PuttingDrillView = {
@@ -469,6 +471,44 @@ export type PuttingDrillView = {
   metricDefs: DrillMetricDefView[];
 };
 
+/** A listPuttingDrills row as Postgres returns it (metric_defs is the json_agg). */
+export type PuttingDrillRow = {
+  id: string;
+  title: string;
+  area: string;
+  is_system: boolean;
+  sort_order: number | null;
+  metric_defs: Array<{
+    id: string;
+    label: string;
+    unit: string | null;
+    valueType: string;
+    better?: string | null;
+  }> | null;
+};
+
+/**
+ * Row → wire shape for GET /api/practice/drills. Pure (no I/O). `better` passes
+ * through only as 'lower' | 'higher'; anything else (NULL, missing) is null —
+ * a scoring direction is never guessed.
+ */
+export function toPuttingDrillView(r: PuttingDrillRow): PuttingDrillView {
+  return {
+    id: r.id,
+    title: r.title,
+    area: r.area,
+    isSystem: r.is_system,
+    sortOrder: r.sort_order,
+    metricDefs: (r.metric_defs ?? []).map((m) => ({
+      id: m.id,
+      label: m.label,
+      unit: m.unit,
+      valueType: m.valueType,
+      better: m.better === "lower" || m.better === "higher" ? m.better : null,
+    })),
+  };
+}
+
 /**
  * Active (non-archived) putting drills for the block picker (§4d), each with its
  * ordered metric definitions. Ordered General (the is_system block) first, then
@@ -476,18 +516,12 @@ export type PuttingDrillView = {
  */
 export async function listPuttingDrills(deps: PracticeDeps = {}): Promise<PuttingDrillView[]> {
   const pool = deps.pool ?? getPool();
-  const { rows } = await pool.query<{
-    id: string;
-    title: string;
-    area: string;
-    is_system: boolean;
-    sort_order: number | null;
-    metric_defs: Array<{ id: string; label: string; unit: string | null; valueType: string }> | null;
-  }>(
+  const { rows } = await pool.query<PuttingDrillRow>(
     `SELECT d.id, d.title, d.area, d.is_system, d.sort_order,
             COALESCE(
               json_agg(
-                json_build_object('id', dmd.id, 'label', dmd.label, 'unit', dmd.unit, 'valueType', dmd.value_type)
+                json_build_object('id', dmd.id, 'label', dmd.label, 'unit', dmd.unit, 'valueType', dmd.value_type,
+                                  'better', dmd.better)
                 ORDER BY dmd.sort_order
               ) FILTER (WHERE dmd.id IS NOT NULL),
               '[]'
@@ -498,14 +532,7 @@ export async function listPuttingDrills(deps: PracticeDeps = {}): Promise<Puttin
       GROUP BY d.id
       ORDER BY d.is_system DESC, d.sort_order NULLS LAST, d.title`,
   );
-  return rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    area: r.area,
-    isSystem: r.is_system,
-    sortOrder: r.sort_order,
-    metricDefs: r.metric_defs ?? [],
-  }));
+  return rows.map(toPuttingDrillView);
 }
 
 // ── Club roster (Clubs Used chip row, §5a) ──────────────────────────────────

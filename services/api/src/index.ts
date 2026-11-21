@@ -61,6 +61,7 @@ export {
   listPracticeSessions,
   deletePracticeSession,
   listPuttingDrills,
+  toPuttingDrillView,
   listActiveClubs,
   getClubConfidence,
   upsertClubConfidence,
@@ -82,6 +83,7 @@ export {
   type SessionClubView,
   type PuttingDrillView,
   type DrillMetricDefView,
+  type PuttingDrillRow,
   type ClubRosterView,
   type ClubConfidenceView,
 } from "./practice";
