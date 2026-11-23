@@ -81,6 +81,20 @@ export const STATS_WINDOW_LABELS: Record<StatsWindow, string> = {
   hcp8: "Hcp 8",
 };
 
+/** Nominal round count of the count-based windows; YTD is date-based (none). */
+const STATS_WINDOW_SIZE: Partial<Record<StatsWindow, number>> = { last20: 20, hcp8: 8 };
+
+/**
+ * Pill label that tells the truth about a short window: "Last 20 · 19" when
+ * only 19 rounds exist, plain "Last 20" once the window is full. `count` is the
+ * length of selectWindow()'s result for that window.
+ */
+export function statsWindowLabel(window: StatsWindow, count: number): string {
+  const size = STATS_WINDOW_SIZE[window];
+  const label = STATS_WINDOW_LABELS[window];
+  return size !== undefined && count < size ? `${label} · ${count}` : label;
+}
+
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
